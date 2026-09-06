@@ -1,0 +1,36 @@
+{
+  "name": "rb-online",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Riftbound Online \u2014 an unofficial, non-commercial fan client for the Riftbound TCG",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -b && tsc -p tsconfig.eslint.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "card-lint": "npm run start -w @rb/card-lint",
+    "sim": "npm run start -w @rb/sim",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.34.0",
+    "@types/node": "^24.3.0",
+    "eslint": "^9.34.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.41.0",
+    "vitest": "^3.2.4"
+  }
+}

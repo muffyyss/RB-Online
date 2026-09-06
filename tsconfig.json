@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/protocol" },
+    { "path": "./packages/engine" },
+    { "path": "./packages/cards" },
+    { "path": "./tools/card-lint" },
+    { "path": "./tools/sim" }
+  ]
+}

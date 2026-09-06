@@ -1,0 +1,24 @@
+{
+  "name": "@rb/sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless bot-vs-bot simulator used to shake out engine bugs.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean",
+    "start": "node --experimental-strip-types src/index.ts"
+  },
+  "dependencies": {
+    "@rb/cards": "*",
+    "@rb/engine": "*"
+  }
+}

@@ -1,0 +1,28 @@
+node_modules/
+dist/
+build/
+out/
+release/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+coverage/
+.vite/
+.DS_Store
+Thumbs.db
+*.log
+
+
+
+# Card art originals (large binaries)
+assets/cards/src/
+
+# Riot's rulebook and everything derived from it stays local -- we do not
+# redistribute their text. Regenerate with scripts/rules/extract_rules.py.
+docs/reference/*
+!docs/reference/README.md
+
+# Python bytecode from scripts/
+__pycache__/
+*.py[cod]

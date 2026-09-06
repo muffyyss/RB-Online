@@ -1,0 +1,23 @@
+{
+  "name": "@rb/cards",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hand-authored card definitions and the card registry.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@rb/engine": "*",
+    "zod": "^4.1.5"
+  }
+}

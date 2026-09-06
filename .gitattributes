@@ -1,0 +1,10 @@
+# Normalise to LF in the repository; CI runs on Linux while development is on
+# Windows, and mixed endings make diffs unreadable.
+* text=auto eol=lf
+
+# Never touch binaries.
+*.png binary
+*.jpg binary
+*.webp binary
+*.pdf binary
+*.ico binary
