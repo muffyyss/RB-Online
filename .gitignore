@@ -26,3 +26,9 @@ docs/reference/*
 # Python bytecode from scripts/
 __pycache__/
 *.py[cod]
+
+# Third-party dev skills vendored by `npx skills` (mattpocock/skills).
+# The lock file is committed so the set is reproducible; the copies are not,
+# since they are someone else's content and would bury the project.
+# Restore with: npx skills experimental_install
+.claude/skills/

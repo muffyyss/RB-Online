@@ -80,6 +80,20 @@ The engine cites rule numbers from Riot's Core Rules. That corpus is generated
 locally and never committed — see [docs/reference/README.md](docs/reference/README.md)
 for the one-time poppler setup and how to regenerate it.
 
+### Dev skills
+
+This repo pins a set of third-party Claude Code skills (from
+[mattpocock/skills](https://github.com/mattpocock/skills)) in `skills-lock.json`.
+The skill files themselves are gitignored — they are someone else's content and
+would bury the project. To restore them on a new machine:
+
+```bash
+npx skills experimental_install
+```
+
+They are development tooling only. Nothing in `packages/` or `apps/` depends on
+them.
+
 ## Licence
 
 No licence is granted. This is a private fan project built for a small community.
