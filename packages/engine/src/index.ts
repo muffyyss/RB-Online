@@ -53,3 +53,45 @@ export type {
   Selector,
   Target,
 } from './effects/steps.js'
+
+export {
+  PLAYERS,
+  battlefield,
+  getObject,
+  isClosedState,
+  isShowdownState,
+  objectsAt,
+  opponentOf,
+  playerState,
+  powerOf,
+  requireObject,
+  turnStateOf,
+} from './state/game-state.js'
+export type {
+  BattlefieldState,
+  CardId,
+  ChainItem,
+  CombatRole,
+  GameObject,
+  GameState,
+  Location,
+  ObjectId,
+  PendingChoice,
+  Phase,
+  PlayerId,
+  PlayerState,
+  Step,
+  TurnState,
+  ZoneName,
+} from './state/game-state.js'
+
+export { canSee, hiddenIdsFor, redactFor } from './state/redact.js'
+export type { GameView, PendingChoiceView, PlayerView, ZoneView } from './state/redact.js'
+
+export { oracleFrom } from './effects/oracle.js'
+export type { CardFacts, CardOracle } from './effects/oracle.js'
+export { resolveSelector, selectorCount } from './effects/selector.js'
+export type { SelectorContext } from './effects/selector.js'
+export { beginExecution, resolveChoice, runExecution } from './effects/interpreter.js'
+export type { Execution, ExecutionResult, Frame } from './effects/interpreter.js'
+export type { GameEvent } from './effects/events.js'

@@ -61,26 +61,31 @@ per-player view; nothing above a player's entitlement may cross the wire. Privac
 levels are defined in 128: **Secret** (nobody may look), **Private** (only the
 controller/owner), **Public** (anyone). A card's privacy defaults to its zone's (128.2.a).
 
-| Zone             | Rule             | Privacy                        | In a redacted view                     |
-| ---------------- | ---------------- | ------------------------------ | -------------------------------------- |
-| Base             | 107.1.d          | Public                         | Full contents                          |
-| Battlefield Zone | 107.2.c          | Public                         | Full contents                          |
-| Facedown Zone    | 107.3.f          | Zone public, **cards Private** | Existence + count only                 |
-| Legend Zone      | 107.4.c          | Public                         | Full                                   |
-| Chain            | 108.1.b          | Public                         | Full                                   |
-| Trash            | 108.2.d          | Public                         | Full, unordered                        |
-| Champion Zone    | 108.3.e          | Public                         | Full                                   |
-| Main Deck        | 108.4.d          | **Order is Secret**            | Count only                             |
-| Rune Deck        | 108.5.d          | **Order is Secret**            | Count only                             |
-| Banishment       | 108.6.e          | Public                         | Full                                   |
-| Hand             | 108.7.c, 108.7.e | **Private**, count Public      | Own hand full; opponent's = count only |
+| Zone             | Rule             | Privacy                           | In a redacted view                     |
+| ---------------- | ---------------- | --------------------------------- | -------------------------------------- |
+| Base             | 107.1.d          | Public                            | Full contents                          |
+| Battlefield Zone | 107.2.c          | Public                            | Full contents                          |
+| Facedown Zone    | 107.3.f          | Zone public, **cards Private**    | Existence + count only                 |
+| Legend Zone      | 107.4.c          | Public                            | Full                                   |
+| Chain            | 108.1.b          | Public                            | Full                                   |
+| Trash            | 108.2.d          | Public                            | Full, unordered                        |
+| Champion Zone    | 108.3.e          | Public                            | Full                                   |
+| Main Deck        | 108.4.d, 129.3   | Faces concealed, **order Secret** | Count only                             |
+| Rune Deck        | 108.5.d, 129.3   | Faces concealed, **order Secret** | Count only                             |
+| Banishment       | 108.6.e          | Public                            | Full                                   |
+| Hand             | 108.7.c, 108.7.e | **Private**, count Public         | Own hand full; opponent's = count only |
 
 Two consequences that are easy to get wrong:
 
 - **Trash and Banishment are public.** Do not redact them.
-- **Deck contents are not secret — deck _order_ is.** A player may know which cards
-  remain; they may not know the sequence. Model decks as an ordered list server-side
-  and expose only length, but do not treat "what is in my deck" as hidden information.
+- **Decks are concealed, and their order is Secret.** 129.3 groups Main Deck cards with
+  cards in hand: both have their back side presented to conceal Private or Secret
+  information. On top of that, 108.4.d makes the _order_ Secret — a level nobody may
+  look at, not even the owner (128.3). So a redacted view exposes deck **length only**,
+  to both players, and the server must not leak remaining contents or sequence.
+- **Facedown cards on the board are Private, not Secret** (129.4) — their controller
+  may look. The Facedown Zone itself is a Public zone (107.3.f), so its occupancy is
+  visible even though the card is not.
 
 Acceptance test: play a full game and inspect every WebSocket frame. The opponent's
 hand contents and both deck orders must appear nowhere.
