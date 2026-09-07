@@ -10,21 +10,22 @@ server.
 
 ## Status
 
-Early build. See [the plan](docs/plan.md) for scope and milestones, and
-[the architecture](docs/architecture.md) for how the pieces fit together.
+Early build. See [the plan](docs/plan.md) for scope and milestones,
+[the architecture](docs/architecture.md) for how the pieces fit together, and
+[the rules spec](docs/rules-spec.md) for what the engine must implement.
 
-| Milestone | What                                                   | State             |
-| --------- | ------------------------------------------------------ | ----------------- |
-| M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done           |
-| M1        | Core Rules transcribed into a machine-readable corpus  | ✅ extractor done |
-| M2        | Card definition schema and effect-step interpreter     | next              |
-| M3        | Rules engine — zones, turns, chain, showdowns, scoring |                   |
-| M4        | All 41 Origins: Proving Grounds cards                  |                   |
-| M5        | Server — registration, login, decks                    |                   |
-| M6        | Match server — room codes, matchmaking, reconnect      |                   |
-| M7        | Client shell — Electron, deck builder                  |                   |
-| M8        | Game board UI                                          |                   |
-| M9        | Deploy, package, playtest                              |                   |
+| Milestone | What                                                   | State   |
+| --------- | ------------------------------------------------------ | ------- |
+| M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done |
+| M1        | Core Rules transcribed into a machine-readable corpus  | ✅ done |
+| M2        | Card definition schema and effect-step interpreter     | next    |
+| M3        | Rules engine — zones, turns, chain, showdowns, scoring |         |
+| M4        | All 41 Origins: Proving Grounds cards                  |         |
+| M5        | Server — registration, login, decks                    |         |
+| M6        | Match server — room codes, matchmaking, reconnect      |         |
+| M7        | Client shell — Electron, deck builder                  |         |
+| M8        | Game board UI                                          |         |
+| M9        | Deploy, package, playtest                              |         |
 
 ## Layout
 

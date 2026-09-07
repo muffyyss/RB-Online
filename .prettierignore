@@ -3,3 +3,6 @@ dist/
 coverage/
 *.tsbuildinfo
 docs/reference/
+
+# Vendored third-party skills
+.claude/

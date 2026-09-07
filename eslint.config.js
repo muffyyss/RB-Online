@@ -49,7 +49,14 @@ const ENGINE_PURITY_RULES = {
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'docs/reference/**'],
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      'docs/reference/**',
+      // Vendored third-party skills - not our code to lint.
+      '.claude/**',
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
