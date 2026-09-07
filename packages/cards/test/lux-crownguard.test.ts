@@ -23,15 +23,16 @@ describe('OGS-014 Lux, Crownguard', () => {
       kind: 'activated',
       exhaust: true,
       keywords: ['reaction'],
-      steps: [{ op: 'add', energy: 2 }],
+      steps: [{ op: 'add', energy: 2, onlyFor: ['spell'] }],
     })
   })
 
-  it('is flagged as not fully modelled', () => {
-    // "Use only to play spells" is a spending restriction the Rune Pool cannot
-    // express yet. If this assertion starts failing, the restriction has been
-    // implemented and the marker should be removed.
+  it('restricts the added Energy to spells, and is fully modelled', () => {
     const ability = card.abilities?.find((a) => a.id === 'lux-crownguard-ramp')
-    expect(ability?.notImplemented).toBeTruthy()
+    expect(ability?.notImplemented).toBeUndefined()
+    expect(ability?.kind === 'activated' ? ability.steps[0] : undefined).toMatchObject({
+      op: 'add',
+      onlyFor: ['spell'],
+    })
   })
 })

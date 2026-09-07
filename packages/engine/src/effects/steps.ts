@@ -18,6 +18,7 @@
 
 import { z } from 'zod'
 
+import { CARD_TYPES } from '../model/card.js'
 import { DOMAINS } from '../model/domain.js'
 
 /**
@@ -162,6 +163,11 @@ const leafStepSchema = z.discriminatedUnion('op', [
     energy: z.number().int().nonnegative().optional(),
     power: z.array(z.enum(DOMAINS)).optional(),
     universal: z.number().int().nonnegative().optional(),
+    /**
+     * Restrict what the added resources may pay for, e.g. `['spell']` for
+     * "Use only to play spells". Absent means unrestricted.
+     */
+    onlyFor: z.array(z.enum(CARD_TYPES)).optional(),
   }),
 
   // --- units ---

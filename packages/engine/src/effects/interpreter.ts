@@ -17,6 +17,7 @@ import type { CardOracle } from './oracle.js'
 import type { GameEvent } from './events.js'
 import { resolveSelector, selectorCount } from './selector.js'
 import type { SelectorContext } from './selector.js'
+import type { Domain } from '../model/domain.js'
 import { SeededRng } from '../rng.js'
 import type {
   Execution,
@@ -98,6 +99,23 @@ function moveTo(
           faceDown: false,
         }
   return { ...next, objects: { ...next.objects, [id]: updated } }
+}
+
+function countByDomain(domains: readonly Domain[]): Partial<Record<Domain, number>> {
+  const counts: Partial<Record<Domain, number>> = {}
+  for (const domain of domains) counts[domain] = (counts[domain] ?? 0) + 1
+  return counts
+}
+
+function addPower(
+  a: Readonly<Partial<Record<Domain, number>>>,
+  b: Readonly<Partial<Record<Domain, number>>>,
+): Partial<Record<Domain, number>> {
+  const sum: Partial<Record<Domain, number>> = { ...a }
+  for (const [domain, count] of Object.entries(b) as [Domain, number][]) {
+    sum[domain] = (sum[domain] ?? 0) + count
+  }
+  return sum
 }
 
 /** Current Might: printed plus buff counters, each worth +1 (703). */
@@ -335,14 +353,23 @@ function runStep(
 
     case 'add': {
       const pool = state.players[self].runePool
-      const power = { ...pool.power }
-      for (const domain of step.power ?? []) power[domain] = (power[domain] ?? 0) + 1
+      const added = {
+        energy: step.energy ?? 0,
+        power: countByDomain(step.power ?? []),
+        universal: step.universal ?? 0,
+      }
+      // Restricted resources go in their own bucket: whether they can pay a
+      // cost depends on what is being paid for, so they cannot be folded into
+      // the main total.
       const next = withPlayer(state, self, {
-        runePool: {
-          energy: pool.energy + (step.energy ?? 0),
-          power,
-          universal: pool.universal + (step.universal ?? 0),
-        },
+        runePool: step.onlyFor?.length
+          ? { ...pool, restricted: [...pool.restricted, { ...added, onlyFor: step.onlyFor }] }
+          : {
+              ...pool,
+              energy: pool.energy + added.energy,
+              power: addPower(pool.power, added.power),
+              universal: pool.universal + added.universal,
+            },
       })
       events.push({
         type: 'resources-added',

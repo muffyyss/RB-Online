@@ -13,6 +13,7 @@
  *   [C]                      Power of the card's own Domain (135.2.e.6)
  */
 
+import type { CardType } from './card.js'
 import type { Domain } from './domain.js'
 import { DOMAINS } from './domain.js'
 
@@ -34,20 +35,75 @@ export interface Cost {
   readonly power: readonly PowerSymbol[]
 }
 
+/** A quantity of resources, however they may be spent. */
+export interface Resources {
+  readonly energy: number
+  readonly power: Readonly<Partial<Record<Domain, number>>>
+  readonly universal: number
+}
+
+/**
+ * Resources that may only pay for certain kinds of card.
+ *
+ * The rulebook has no general concept of restricted resources — this exists
+ * because cards say so, and card text supersedes rules text (Golden Rule, 001).
+ * Lux, Crownguard reads "Add [2]. Use only to play spells."
+ */
+export interface RestrictedResources extends Resources {
+  readonly onlyFor: readonly CardType[]
+}
+
 /**
  * A player's available resources (166).
  *
  * `universal` is [A] Power already in the pool, spendable on a Power cost of any
  * Domain (135.2.e.5.b). It is tracked separately rather than as a Domain because
  * it is not one.
+ *
+ * Restricted resources are kept in their own buckets rather than mixed into the
+ * main total, because whether they can pay a cost depends on what is being paid
+ * for. The common case — no restrictions at all — stays a flat count.
  */
-export interface RunePool {
-  readonly energy: number
-  readonly power: Readonly<Partial<Record<Domain, number>>>
-  readonly universal: number
+export interface RunePool extends Resources {
+  readonly restricted: readonly RestrictedResources[]
 }
 
-export const EMPTY_POOL: RunePool = { energy: 0, power: {}, universal: 0 }
+export const EMPTY_POOL: RunePool = { energy: 0, power: {}, universal: 0, restricted: [] }
+
+/** What a payment is for, so restricted resources know whether they apply. */
+export interface PaymentTarget {
+  readonly cardType: CardType
+}
+
+/** Add two resource quantities together. */
+function merge(a: Resources, b: Resources): Resources {
+  const power: Partial<Record<Domain, number>> = { ...a.power }
+  for (const domain of DOMAINS) {
+    const extra = b.power[domain] ?? 0
+    if (extra > 0) power[domain] = (power[domain] ?? 0) + extra
+  }
+  return {
+    energy: a.energy + b.energy,
+    power,
+    universal: a.universal + b.universal,
+  }
+}
+
+/**
+ * The resources actually usable for this payment.
+ *
+ * Unrestricted resources always count. A restricted bucket counts only when the
+ * thing being paid for is one of the types it names — and not at all when the
+ * payment has no target, such as an ability cost.
+ */
+export function usableFor(pool: RunePool, target?: PaymentTarget): Resources {
+  let usable: Resources = { energy: pool.energy, power: pool.power, universal: pool.universal }
+  if (!target) return usable
+  for (const bucket of pool.restricted) {
+    if (bucket.onlyFor.includes(target.cardType)) usable = merge(usable, bucket)
+  }
+  return usable
+}
 
 /**
  * Rune Pools empty at the start of each player's Main Phase and at the end of
@@ -81,7 +137,7 @@ export function resolveRequirements(
   })
 }
 
-function totalPower(pool: RunePool): number {
+function totalPower(pool: Resources): number {
   let total = pool.universal
   for (const domain of DOMAINS) total += pool.power[domain] ?? 0
   return total
@@ -98,7 +154,7 @@ function totalPower(pool: RunePool): number {
  */
 function canPayPower(
   requirements: readonly (ReadonlySet<Domain> | null)[],
-  pool: RunePool,
+  pool: Resources,
 ): boolean {
   if (requirements.length === 0) return true
   if (requirements.length > totalPower(pool)) return false
@@ -143,9 +199,15 @@ function canPayPower(
  * Both halves must be satisfiable at once. Partial payment is never legal: if a
  * player cannot pay, playing the card is undone (444.2.a).
  */
-export function canPay(cost: Cost, cardDomains: readonly Domain[], pool: RunePool): boolean {
-  if (pool.energy < cost.energy) return false
-  return canPayPower(resolveRequirements(cost, cardDomains), pool)
+export function canPay(
+  cost: Cost,
+  cardDomains: readonly Domain[],
+  pool: RunePool,
+  target?: PaymentTarget,
+): boolean {
+  const usable = usableFor(pool, target)
+  if (usable.energy < cost.energy) return false
+  return canPayPower(resolveRequirements(cost, cardDomains), usable)
 }
 
 /** Total resource count a cost demands — handy for sorting and display. */

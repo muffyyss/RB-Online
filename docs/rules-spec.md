@@ -239,6 +239,22 @@ the Main Deck, Runes to the Rune Deck (416.1.a–b), always to their **owner's**
 (416.5); to the Rune Deck, in the **owner's chosen order** (416.5.a). That asymmetry is
 deliberate and needs the seeded RNG on one path only.
 
+### Restricted resources
+
+Some cards restrict what the resources they produce may pay for — Lux, Crownguard
+reads "Add [2]. Use only to play spells."
+
+The rulebook has **no general concept** of restricted resources: 166 treats the
+Rune Pool as a single collection. This exists purely because card text says so,
+and card text supersedes rules text (Golden Rule, **001**).
+
+The engine therefore keeps restricted resources in their own buckets rather than
+folding them into the pool's totals, because whether they can pay a cost depends
+on _what is being paid for_. A payment names its target's card type; unrestricted
+resources always apply, and a restricted bucket applies only when its `onlyFor`
+list contains that type. A payment with no target at all — an ability's
+activation cost, say — cannot use restricted resources.
+
 ### Burn Out (431)
 
 Triggered when a player must move more cards out of their Main Deck than it holds. In

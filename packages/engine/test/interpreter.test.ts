@@ -261,7 +261,18 @@ describe('interpreter — resources', () => {
       energy: 2,
       power: { fury: 1 },
       universal: 1,
+      restricted: [],
     })
+  })
+
+  it('keeps restricted resources in their own bucket', () => {
+    const state = makeState([{ id: 'src', owner: 0, zone: 'base' }])
+    const result = run(state, [{ op: 'add', energy: 2, onlyFor: ['spell'] }])
+    const pool = result.state.players[0].runePool
+    // Not folded into the general total, because whether it can pay depends on
+    // what is being paid for.
+    expect(pool.energy).toBe(0)
+    expect(pool.restricted).toEqual([{ energy: 2, power: {}, universal: 0, onlyFor: ['spell'] }])
   })
 
   it('refuses unimplemented ops instead of silently doing nothing', () => {

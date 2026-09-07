@@ -114,12 +114,17 @@ describe('turn machine — start of turn (315)', () => {
         ...atTurnStart().players,
         0: {
           ...atTurnStart().players[0],
-          runePool: { energy: 5, power: { fury: 2 }, universal: 1 },
+          runePool: { energy: 5, power: { fury: 2 }, universal: 1, restricted: [] },
         },
       },
     }
     const { state } = advanceFlow(start)
-    expect(state.players[0].runePool).toEqual({ energy: 0, power: {}, universal: 0 })
+    expect(state.players[0].runePool).toEqual({
+      energy: 0,
+      power: {},
+      universal: 0,
+      restricted: [],
+    })
   })
 })
 

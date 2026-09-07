@@ -3,11 +3,10 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-014 — transcribed from the printed card.
  *
- * The activated ability's restriction ("Use only to play spells") is a
- * constraint on how the added Energy may be *spent*, which the DSL has no way to
- * express yet — resources in the Rune Pool are currently fungible (166). Marked
- * `notImplemented` so card-lint reports it rather than the card shipping as a
- * strictly better mana source than it should be.
+ * "Use only to play spells" is a restriction on how the added Energy may be
+ * *spent*. The rulebook has no general notion of restricted resources, but card
+ * text supersedes rules text (Golden Rule, 001), so the Rune Pool keeps such
+ * resources in their own bucket and payment checks what is being paid for.
  */
 export default defineCard({
   id: 'OGS-014',
@@ -26,9 +25,7 @@ export default defineCard({
       id: 'lux-crownguard-ramp',
       exhaust: true,
       keywords: ['reaction'],
-      steps: [{ op: 'add', energy: 2 }],
-      notImplemented:
-        'the added Energy may only be spent on spells; the Rune Pool has no per-resource spending restriction yet',
+      steps: [{ op: 'add', energy: 2, onlyFor: ['spell'] }],
     },
   ],
   text: '[E] [Reaction] — Add [2]. Use only to play spells.',

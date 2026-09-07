@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Cost, RunePool } from '../src/model/cost.js'
-import { canPay, costValue, formatCost, resolveRequirements } from '../src/model/cost.js'
+import { canPay, costValue, formatCost, resolveRequirements, usableFor } from '../src/model/cost.js'
 import { DOMAIN_SHORTHAND } from '../src/model/domain.js'
 import type { Domain } from '../src/model/domain.js'
 
@@ -9,6 +9,7 @@ const pool = (p: Partial<RunePool> & { power?: Partial<Record<Domain, number>> }
   energy: p.energy ?? 0,
   power: p.power ?? {},
   universal: p.universal ?? 0,
+  restricted: p.restricted ?? [],
 })
 
 const cost = (energy: number, ...power: Cost['power']): Cost => ({ energy, power })
@@ -104,5 +105,52 @@ describe('cost — formatting', () => {
 
   it('totals a cost value', () => {
     expect(costValue(cost(3, dom('fury'), any))).toBe(5)
+  })
+})
+
+describe('cost — restricted resources (Golden Rule, 001)', () => {
+  // Lux, Crownguard: "Add [2]. Use only to play spells."
+  const spellOnly = pool({
+    restricted: [{ energy: 2, power: {}, universal: 0, onlyFor: ['spell'] }],
+  })
+
+  it('pays for a card of a permitted type', () => {
+    expect(canPay(cost(2), [], spellOnly, { cardType: 'spell' })).toBe(true)
+  })
+
+  it('will not pay for a card of any other type', () => {
+    expect(canPay(cost(2), [], spellOnly, { cardType: 'unit' })).toBe(false)
+    expect(canPay(cost(2), [], spellOnly, { cardType: 'gear' })).toBe(false)
+  })
+
+  it('is unusable when the payment has no target, such as an ability cost', () => {
+    expect(canPay(cost(2), [], spellOnly)).toBe(false)
+  })
+
+  it('tops up unrestricted resources rather than replacing them', () => {
+    const mixed = pool({
+      energy: 1,
+      restricted: [{ energy: 2, power: {}, universal: 0, onlyFor: ['spell'] }],
+    })
+    expect(canPay(cost(3), [], mixed, { cardType: 'spell' })).toBe(true)
+    // Only the unrestricted 1 Energy counts toward a unit.
+    expect(canPay(cost(3), [], mixed, { cardType: 'unit' })).toBe(false)
+    expect(canPay(cost(1), [], mixed, { cardType: 'unit' })).toBe(true)
+  })
+
+  it('combines restricted Power with unrestricted Power', () => {
+    const mixed = pool({
+      power: { fury: 1 },
+      restricted: [{ energy: 0, power: { calm: 1 }, universal: 0, onlyFor: ['spell'] }],
+    })
+    const c = cost(0, dom('fury'), dom('calm'))
+    expect(canPay(c, [], mixed, { cardType: 'spell' })).toBe(true)
+    expect(canPay(c, [], mixed, { cardType: 'unit' })).toBe(false)
+  })
+
+  it('reports what is usable for a given target', () => {
+    expect(usableFor(spellOnly, { cardType: 'spell' }).energy).toBe(2)
+    expect(usableFor(spellOnly, { cardType: 'unit' }).energy).toBe(0)
+    expect(usableFor(spellOnly).energy).toBe(0)
   })
 })
