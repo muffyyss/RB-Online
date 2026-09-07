@@ -134,3 +134,13 @@ export type { DamageTarget } from './flow/damage.js'
 export { beginCombat, closeCombat, resolveCombatDamage, resolveCombatEnd } from './flow/combat.js'
 export type { CombatResult } from './flow/combat.js'
 export { settleBoard } from './flow/cleanup.js'
+
+export {
+  MULLIGAN_LIMIT,
+  OPENING_HAND,
+  beginPlay,
+  createGame,
+  inSetup,
+  performMulligan,
+} from './flow/setup.js'
+export type { DeckList } from './flow/setup.js'

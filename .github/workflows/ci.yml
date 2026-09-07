@@ -33,3 +33,8 @@ jobs:
       # From M2 on, every card must validate and carry a test.
       - name: Card lint
         run: npm run card-lint
+
+      # The M3 gate: random play must complete without crashing, stalling, or
+      # the engine offering an action it then refuses.
+      - name: Simulate games
+        run: npm run sim -- --games 500

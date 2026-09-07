@@ -16,6 +16,7 @@ import { timingRefusal } from '../flow/timing.js'
 import { settleBoard } from '../flow/cleanup.js'
 import { closeCombat } from '../flow/combat.js'
 import { moveRefusal, performMove } from '../flow/movement.js'
+import { MULLIGAN_LIMIT, beginPlay, performMulligan } from '../flow/setup.js'
 import { advanceFlow, checkWin, endMainPhase, VICTORY_SCORE } from '../flow/phases.js'
 import type { GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
@@ -48,6 +49,12 @@ export type GameAction =
       readonly units: readonly ObjectId[]
       readonly to: Location
     }
+  /** Set aside up to two cards during setup, before play begins (117). */
+  | {
+      readonly type: 'mulligan'
+      readonly player: PlayerId
+      readonly setAside: readonly ObjectId[]
+    }
   /** A player may concede at any time (650). */
   | { readonly type: 'concede'; readonly player: PlayerId }
 
@@ -66,6 +73,8 @@ export interface RuleViolation {
     | 'unknown-ability'
     | 'already-exhausted'
     | 'illegal-move'
+    | 'not-setup'
+    | 'too-many-cards'
   readonly message: string
 }
 
@@ -263,6 +272,33 @@ export function applyAction(
       return { ok: true, state: after.state, events: [...drained.events, ...after.events] }
     }
 
+    case 'mulligan': {
+      if (state.phase !== 'setup') return reject('not-setup', 'the game has already begun')
+      if (state.priority !== action.player) return reject('bad-timing', 'not your mulligan')
+      if (action.setAside.length > MULLIGAN_LIMIT) {
+        return reject('too-many-cards', `at most ${String(MULLIGAN_LIMIT)} cards (117.1)`)
+      }
+      const hand = state.players[action.player].hand
+      for (const id of action.setAside) {
+        if (!hand.includes(id)) return reject('not-in-hand', 'that card is not in your hand')
+      }
+
+      const events: GameEvent[] = []
+      const done = performMulligan(state, action.player, action.setAside, events)
+
+      // 117 - in turn order. The First Player goes first, then the other; once
+      // both have gone, play begins (118).
+      if (action.player === state.turnPlayer) {
+        return {
+          ok: true,
+          state: { ...done, priority: opponentOf(action.player) },
+          events,
+        }
+      }
+      const started = advanceFlow(beginPlay(done, state.turnPlayer))
+      return { ok: true, state: started.state, events: [...events, ...started.events] }
+    }
+
     case 'move': {
       if (state.pendingChoice) return reject('choice-pending', 'a choice must be answered first')
       if (state.priority !== action.player) return reject('bad-timing', 'no-priority')
@@ -361,6 +397,13 @@ export function legalActions(
 
   const actions: GameAction[] = [{ type: 'concede', player }]
   if (state.priority !== player) return actions
+
+  // During setup the only thing to do is mulligan (117).
+  if (state.phase === 'setup') {
+    actions.push({ type: 'mulligan', player, setAside: [] })
+    return actions
+  }
+
   actions.push({ type: 'pass', player })
 
   // Cards in hand that are both legally timed and affordable.

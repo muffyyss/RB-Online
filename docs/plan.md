@@ -391,6 +391,8 @@ Registration happens **inside the desktop client** — no website needed. Screen
 | Password | Min 10 chars, strength-scored with **zxcvbn** (reject weak), no length cap below 128          |
 | Terms    | Must be explicitly checked                                                                    |
 
+**Password policy (confirmed):** 8-16 characters, `a-z A-Z 0-9` only, no symbols.
+
 **Storage & security:**
 
 - **argon2id** hashing, memory ≥ 64 MB, unique salt per user. Never store the password.

@@ -18,9 +18,9 @@ Early build. See [the plan](docs/plan.md) for scope and milestones,
 | --------- | ------------------------------------------------------ | ------- |
 | M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done |
 | M1        | Core Rules transcribed into a machine-readable corpus  | ✅ done |
-| M2        | Card definition schema and effect-step interpreter     | next    |
-| M3        | Rules engine — zones, turns, chain, showdowns, scoring |         |
-| M4        | All 41 Origins: Proving Grounds cards                  |         |
+| M2        | Card definition schema and effect-step interpreter     | ✅ done |
+| M3        | Rules engine — zones, turns, chain, showdowns, scoring | ✅ done |
+| M4        | All 41 Origins: Proving Grounds cards                  | next    |
 | M5        | Server — registration, login, decks                    |         |
 | M6        | Match server — room codes, matchmaking, reconnect      |         |
 | M7        | Client shell — Electron, deck builder                  |         |

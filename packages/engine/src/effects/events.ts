@@ -65,6 +65,10 @@ export type GameEvent =
   | { readonly type: 'burned-out'; readonly player: PlayerId; readonly gavePointTo: PlayerId }
   | { readonly type: 'game-won'; readonly player: PlayerId }
 
+  // --- setup ---
+  | { readonly type: 'game-started'; readonly firstPlayer: PlayerId }
+  | { readonly type: 'mulliganed'; readonly player: PlayerId; readonly count: number }
+
   // --- flow ---
   | { readonly type: 'choice-required'; readonly player: PlayerId; readonly binding: string }
   | {

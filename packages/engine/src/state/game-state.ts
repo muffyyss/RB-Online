@@ -128,11 +128,24 @@ export interface PlayerState {
   readonly scoredThisTurn: readonly ObjectId[]
 }
 
-/** Phases and steps of a turn (315-317). */
-export type Phase = 'awaken' | 'beginning' | 'channel' | 'draw' | 'main' | 'ending'
+/**
+ * Phases of a turn (315-317), plus `setup`.
+ *
+ * `setup` is not part of a turn — it covers the Mulligan (117) before play
+ * begins — so it deliberately does not appear in the turn step table.
+ */
+export type Phase = 'setup' | 'awaken' | 'beginning' | 'channel' | 'draw' | 'main' | 'ending'
 
 export type Step =
-  'ready' | 'beginning' | 'scoring' | 'channel' | 'draw' | 'main' | 'ending' | 'expiration'
+  | 'mulligan'
+  | 'ready'
+  | 'beginning'
+  | 'scoring'
+  | 'channel'
+  | 'draw'
+  | 'main'
+  | 'ending'
+  | 'expiration'
 
 /**
  * A pending or finalized item on the Chain (329).

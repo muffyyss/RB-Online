@@ -250,6 +250,9 @@ function runStepTask(state: GameState, events: GameEvent[]): GameState {
       })
     case 'expiration':
       return expiration(state, events)
+    case 'mulligan':
+      // Setup, not a turn step - advanceFlow never reaches it (117).
+      return state
     case 'beginning':
     case 'ending':
       // Windows for start/end-of-phase effects. Nothing to do until triggered
@@ -334,6 +337,8 @@ export function advanceFlow(state: GameState): AdvanceResult {
   for (let guard = 0; guard < 1000; guard += 1) {
     if (current.winner !== null) break
     if (current.pendingChoice) break
+    // Setup is not part of a turn; the Mulligan drives it instead (117).
+    if (current.phase === 'setup') break
 
     const index = stepIndex(current.phase, current.step)
     const def = TURN_STEPS[index]

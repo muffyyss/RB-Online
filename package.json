@@ -21,7 +21,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "card-lint": "npm run start -w @rb/card-lint",
-    "sim": "npm run start -w @rb/sim",
+    "sim": "npm run start -w @rb/sim --",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "rules:extract": "python scripts/rules/extract_rules.py",
     "rules:check": "python scripts/rules/check_citations.py"
