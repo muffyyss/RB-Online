@@ -62,7 +62,7 @@ export const GAME_ACTIONS = [
   'pay', // 444
 ] as const
 
-export type GameAction = (typeof GAME_ACTIONS)[number]
+export type GameActionName = (typeof GAME_ACTIONS)[number]
 
 /**
  * Control-flow atoms. Ours, not the rulebook's - they sequence Game Actions.

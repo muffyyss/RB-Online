@@ -49,7 +49,7 @@ export type {
   Amount,
   ControlOp,
   EffectStep,
-  GameAction,
+  GameActionName,
   Selector,
   Target,
 } from './effects/steps.js'
@@ -95,3 +95,18 @@ export type { SelectorContext } from './effects/selector.js'
 export { beginExecution, resolveChoice, runExecution } from './effects/interpreter.js'
 export type { Execution, ExecutionResult, Frame } from './effects/interpreter.js'
 export type { GameEvent } from './effects/events.js'
+
+export {
+  RUNES_PER_TURN,
+  TURN_STEPS,
+  VICTORY_SCORE,
+  advanceFlow,
+  channel,
+  checkWin,
+  endMainPhase,
+  score,
+} from './flow/phases.js'
+export type { AdvanceResult } from './flow/phases.js'
+
+export { applyAction, legalActions } from './actions/index.js'
+export type { ActionResult, GameAction, RuleViolation } from './actions/index.js'
