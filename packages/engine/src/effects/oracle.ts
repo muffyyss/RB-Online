@@ -8,7 +8,7 @@
  * dragging the whole set in.
  */
 
-import type { CardType, Tag } from '../model/card.js'
+import type { CardType, Supertype, Tag } from '../model/card.js'
 import type { Cost } from '../model/cost.js'
 import type { Domain } from '../model/domain.js'
 import type { Keyword } from '../model/keyword.js'
@@ -49,6 +49,13 @@ export interface CardFacts {
   readonly domains: readonly Domain[]
   /** Tags carry no innate meaning but card text references them (133.8.a). */
   readonly tags: readonly Tag[]
+  /**
+   * Listed before the type and affecting deckbuilding (133.7).
+   *
+   * `champion` gates the Chosen Champion slot; `signature` is capped at three
+   * per deck regardless of name (103.2.d.1).
+   */
+  readonly supertypes?: readonly Supertype[]
   /** Printed cost, Main Deck cards only (131.1). */
   readonly cost?: Cost
   /** Printed Might, units only (143.2). Modifiers are applied by the layer system. */

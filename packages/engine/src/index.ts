@@ -144,3 +144,14 @@ export {
   performMulligan,
 } from './flow/setup.js'
 export type { DeckList } from './flow/setup.js'
+
+export {
+  DUEL_BATTLEFIELDS,
+  MAX_COPIES,
+  MAX_SIGNATURE,
+  MIN_MAIN_DECK,
+  RUNE_DECK_SIZE,
+  describeDeck,
+  validateDeck,
+} from './deck/validate.js'
+export type { DeckError, DeckErrorCode, DeckValidation } from './deck/validate.js'
