@@ -17,6 +17,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@rb/protocol": "*"
+    "@rb/protocol": "*",
+    "zod": "^4.1.5"
   }
 }

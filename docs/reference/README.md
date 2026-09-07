@@ -61,3 +61,28 @@ tests cite rule numbers directly from this corpus:
 
 When Riot publishes a rules update, drop in the new PDF, re-run the extractor,
 and diff `core-rules.json` to see exactly which rules changed.
+
+---
+
+## Card metadata
+
+`ogs-cards.json` holds metadata for the 24 Origins: Proving Grounds exclusives,
+fetched once from the community [RiftScribe](https://riftscribe.gg) API:
+
+```
+curl "https://riftscribe.gg/api/cards?set_id=OGS&limit=100" -o docs/reference/ogs-cards.json
+```
+
+It carries name, type, domains, rarity, collector number, Energy/Power cost and
+Might — but **no rules text**, which exists only on the card face. Card text in
+`packages/cards` is therefore transcribed by hand from the printed cards, with
+the verbatim text kept in each definition's `text` field so a reviewer can check
+it against the real card.
+
+Note the Proving Grounds exclusives are only Units, Spells and the four starter
+Legends. The starter decks also draw on the Origins (OGN) base set, which is
+where Gear, Runes and Battlefields come from.
+
+This file and any downloaded card art are gitignored along with everything else
+here — it is Riot's card data and other people's imagery. Nothing at runtime
+depends on the API: card definitions are hand-authored and self-contained.
