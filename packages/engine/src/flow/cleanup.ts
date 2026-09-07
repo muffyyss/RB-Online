@@ -12,6 +12,8 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
+import type { CardOracle } from '../effects/oracle.js'
+import { beginCombat } from './combat.js'
 import { score } from './phases.js'
 import type { BattlefieldState, GameState, ObjectId, PlayerId } from '../state/game-state.js'
 
@@ -38,8 +40,10 @@ function applyContested(state: GameState): GameState {
   const battlefields = state.battlefields.map((bf) => {
     if (bf.contested) return bf
     const here = occupants(state, bf.id)
-    const intruder = [...here].some((player) => player !== bf.controller)
-    return intruder ? { ...bf, contested: true } : bf
+    const intruder = [...here].find((player) => player !== bf.controller)
+    // Record who contested it: the Attacker in any resulting Combat is the
+    // player whose units applied the status (464.2.c.1), not the Turn Player.
+    return intruder === undefined ? bf : { ...bf, contested: true, contestedBy: intruder }
   })
   return { ...state, battlefields }
 }
@@ -120,4 +124,25 @@ export function runCleanup(state: GameState, events: GameEvent[]): GameState {
  */
 export function stagedCombats(state: GameState): readonly ObjectId[] {
   return state.battlefields.filter((bf) => occupants(state, bf.id).size > 1).map((bf) => bf.id)
+}
+
+/**
+ * Run a Cleanup and start a Combat if one is now staged.
+ *
+ * 460 - a Combat begins when a Cleanup occurs, the Chain is empty, a Combat is
+ * staged, and no Showdown or Combat is ongoing anywhere else. Callers use this
+ * rather than `runCleanup` whenever they have changed the board, so units
+ * meeting at a Battlefield always lead somewhere.
+ *
+ * With more than one staged Combat the Turn Player chooses which to resolve
+ * first (461.1); with two Battlefields in a Duel that choice is rare, and the
+ * first is taken for determinism until it is worth surfacing.
+ */
+export function settleBoard(state: GameState, oracle: CardOracle, events: GameEvent[]): GameState {
+  const cleaned = runCleanup(state, events)
+  if (cleaned.showdown || cleaned.chain.length > 0 || cleaned.winner !== null) return cleaned
+
+  const staged = stagedCombats(cleaned)
+  const first = staged[0]
+  return first === undefined ? cleaned : beginCombat(cleaned, first, events)
 }

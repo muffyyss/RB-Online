@@ -13,7 +13,8 @@ import type { CardOracle } from '../effects/oracle.js'
 import { canPay, pay } from '../model/cost.js'
 import { addToChain, advanceChain, passOnChain, resumeResolution } from '../flow/chain.js'
 import { timingRefusal } from '../flow/timing.js'
-import { runCleanup } from '../flow/cleanup.js'
+import { settleBoard } from '../flow/cleanup.js'
+import { closeCombat } from '../flow/combat.js'
 import { moveRefusal, performMove } from '../flow/movement.js'
 import { advanceFlow, checkWin, endMainPhase, VICTORY_SCORE } from '../flow/phases.js'
 import type { GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
@@ -275,7 +276,7 @@ export function applyAction(
       const moved = performMove(state, action.units, action.to, events)
       // 453 - a Cleanup follows a completed Move; that is where Contested and
       // Control are settled, and where a Conquer scores.
-      const cleaned = checkWin(runCleanup(moved, events), events)
+      const cleaned = checkWin(settleBoard(moved, oracle, events), events)
       return { ok: true, state: cleaned, events }
     }
 
@@ -285,6 +286,33 @@ export function applyAction(
       }
       if (state.priority !== action.player) {
         return reject('not-your-priority', 'you do not have priority')
+      }
+
+      // Inside a Combat Showdown with an empty Chain, passing in sequence
+      // closes the Showdown and combat proceeds to damage (464.2.g, 465).
+      if (state.showdown && state.chain.length === 0) {
+        const passes = state.consecutivePasses + 1
+        if (passes < 2) {
+          return {
+            ok: true,
+            state: {
+              ...state,
+              consecutivePasses: passes,
+              priority: opponentOf(action.player),
+              focus: opponentOf(action.player),
+            },
+            events: [],
+          }
+        }
+        const events: GameEvent[] = []
+        // 465.3 - no window between damage and resolution.
+        const fought = closeCombat(state, oracle, events)
+        const settled = checkWin(settleBoard(fought, oracle, events), events)
+        const after =
+          settled.showdown || settled.winner !== null
+            ? { state: settled, events: [] as readonly GameEvent[] }
+            : advanceFlow(settled)
+        return { ok: true, state: after.state, events: [...events, ...after.events] }
       }
 
       // With a Chain in play, passing feeds the FEPR loop (338.1.b, 339).

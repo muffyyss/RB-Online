@@ -92,6 +92,13 @@ export interface BattlefieldState {
   readonly controller?: PlayerId
   /** Set when opposing units meet here; cleared on resolution (466.5.a). */
   readonly contested: boolean
+  /**
+   * Who applied the Contested status (190.3.a).
+   *
+   * Needed because the Attacker in a Combat is the player whose units contested
+   * the Battlefield (464.2.c.1) — it is not simply the Turn Player.
+   */
+  readonly contestedBy?: PlayerId
   /** Max occupancy 1 by default (107.3.b). Cards here are Private (107.3.f). */
   readonly facedown: readonly ObjectId[]
 }
@@ -212,7 +219,13 @@ export interface GameState {
   /** The Chain exists only while it holds an item (330). */
   readonly chain: readonly ChainItem[]
   /** A Showdown or Combat in progress puts the turn in a Showdown State (308.1). */
-  readonly showdown?: { readonly battlefield: ObjectId; readonly combat: boolean }
+  readonly showdown?: {
+    readonly battlefield: ObjectId
+    readonly combat: boolean
+    /** The player whose units applied Contested (464.2.c.1). */
+    readonly attacker?: PlayerId
+    readonly defender?: PlayerId
+  }
 
   /** At most one player has Priority; sometimes nobody does (312, 312.1.b). */
   readonly priority: PlayerId | null

@@ -45,6 +45,20 @@ export type GameEvent =
       readonly player: PlayerId
     }
   | { readonly type: 'battlefield-uncontrolled'; readonly battlefield: ObjectId }
+  | { readonly type: 'recalled'; readonly unit: ObjectId }
+
+  // --- combat ---
+  | {
+      readonly type: 'combat-began'
+      readonly battlefield: ObjectId
+      readonly attacker: PlayerId
+      readonly defender: PlayerId
+    }
+  | {
+      readonly type: 'combat-ended'
+      readonly battlefield: ObjectId
+      readonly result: 'attacker' | 'defender' | 'none'
+    }
 
   // --- scoring and endgame ---
   | { readonly type: 'points-gained'; readonly player: PlayerId; readonly amount: number }

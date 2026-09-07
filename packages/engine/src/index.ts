@@ -128,3 +128,9 @@ export type {
 export { moveRefusal, performMove } from './flow/movement.js'
 export type { MoveRefusal } from './flow/movement.js'
 export { runCleanup, stagedCombats } from './flow/cleanup.js'
+
+export { assignDamage, lethalThreshold, sumMight } from './flow/damage.js'
+export type { DamageTarget } from './flow/damage.js'
+export { beginCombat, closeCombat, resolveCombatDamage, resolveCombatEnd } from './flow/combat.js'
+export type { CombatResult } from './flow/combat.js'
+export { settleBoard } from './flow/cleanup.js'
