@@ -155,3 +155,14 @@ export {
   validateDeck,
 } from './deck/validate.js'
 export type { DeckError, DeckErrorCode, DeckValidation } from './deck/validate.js'
+
+export {
+  DECK_CODE_VERSION,
+  PRESET_FILE_VERSION,
+  canEnterRoom,
+  decodeDeck,
+  emptyPresetFile,
+  encodeDeck,
+  parsePresetFile,
+} from './deck/preset.js'
+export type { DeckCodeError, DeckCodeResult, DeckPreset, PresetFile } from './deck/preset.js'

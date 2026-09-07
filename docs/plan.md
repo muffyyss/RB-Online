@@ -365,8 +365,6 @@ password_resets     user_id, token_hash, expires_at, consumed_at
 invite_codes        id, code_hash, created_by, max_uses, used_count, expires_at, note
 invite_redemptions  invite_code_id, user_id, redeemed_at
 cards               id, set, name, type, domains[], cost jsonb, text, art_url  -- search index
-decks               id, user_id, name, legend_card_id, format, updated_at
-deck_cards          deck_id, card_id, qty, board('main'|'rune'|'battlefield')
 matches             id, format, seed, started_at, ended_at, winner_user_id, end_reason
 match_players       match_id, user_id, seat, deck_snapshot jsonb   -- snapshot: decks get edited
 match_actions       match_id, seq, actor, action jsonb, created_at -- the replay log
@@ -403,6 +401,10 @@ Registration happens **inside the desktop client** — no website needed. Screen
 - Rate limited per-IP and per-email (`@fastify/rate-limit`), with a short artificial
   delay on failures.
 - Every registration writes an `audit_log` row (ip, user agent, timestamp).
+
+**Invite-code gated (confirmed).** Registration requires an admin-issued code.
+The `email` mode below stays available behind a config flag if the community ever
+opens up.
 
 **Two gating modes — pick one via config flag** (`REGISTRATION_MODE`):
 
@@ -443,12 +445,34 @@ GET    /api/auth/check-username?u=   # live availability check for the register 
 POST   /api/auth/redeem-invite       # invite mode
 GET    /api/me                       PATCH /api/me/password
 GET    /api/cards?set=&domain=&type=&cost=&q=   # + ?version= for the cardDataVersion hash
-GET    /api/decks                    POST /api/decks
-GET    /api/decks/:id                PATCH /api/decks/:id      DELETE /api/decks/:id
-POST   /api/decks/:id/validate       # runs the SAME validator the engine uses
 GET    /api/matches/:id/replay
 GET    /health
 ```
+
+### Decks are local, not server-stored
+
+**Confirmed with the project owner.** Deck presets live on the player's machine
+as a plain JSON file; there is no deck table, no deck API, and no sync. Simpler
+server, and the data stays theirs.
+
+What this does _not_ change: when a match starts the client sends its decklist
+and the server validates it with `validateDeck` before play begins. Local storage
+decides where a deck lives between games, never whether it is legal — a modified
+client that saved an illegal preset is rejected at the door.
+
+Two consequences to design around, both handled by **deck codes** (plain,
+shareable text produced by `encodeDeck`): presets do not follow a player to
+another machine, and a reinstall loses them.
+
+The client requires **at least one saved preset** before it will let a player
+create or join a room. That is a product rule, not a rulebook one, and it is a
+UX gate rather than a security boundary.
+
+### Every card is always available
+
+No collection, no packs, no ownership. The deck builder is a card browser plus
+the shared validator. This is a non-commercial fan client, so there is nothing
+to grind for and no reason to gate cards behind acquisition.
 
 ### WebSocket gateway
 
