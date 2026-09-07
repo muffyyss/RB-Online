@@ -124,3 +124,7 @@ export type {
   Resources,
   RestrictedResources,
 } from './model/cost.js'
+
+export { moveRefusal, performMove } from './flow/movement.js'
+export type { MoveRefusal } from './flow/movement.js'
+export { runCleanup, stagedCombats } from './flow/cleanup.js'

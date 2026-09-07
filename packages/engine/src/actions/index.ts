@@ -13,8 +13,10 @@ import type { CardOracle } from '../effects/oracle.js'
 import { canPay, pay } from '../model/cost.js'
 import { addToChain, advanceChain, passOnChain, resumeResolution } from '../flow/chain.js'
 import { timingRefusal } from '../flow/timing.js'
+import { runCleanup } from '../flow/cleanup.js'
+import { moveRefusal, performMove } from '../flow/movement.js'
 import { advanceFlow, checkWin, endMainPhase, VICTORY_SCORE } from '../flow/phases.js'
-import type { GameState, ObjectId, PlayerId } from '../state/game-state.js'
+import type { GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
 
 export type GameAction =
@@ -35,6 +37,16 @@ export type GameAction =
       readonly source: ObjectId
       readonly abilityId: string
     }
+  /**
+   * Standard Move: send one or more units you control to a shared destination
+   * (144). Several units moving together is one game action (144.3).
+   */
+  | {
+      readonly type: 'move'
+      readonly player: PlayerId
+      readonly units: readonly ObjectId[]
+      readonly to: Location
+    }
   /** A player may concede at any time (650). */
   | { readonly type: 'concede'; readonly player: PlayerId }
 
@@ -52,6 +64,7 @@ export interface RuleViolation {
     | 'cannot-pay'
     | 'unknown-ability'
     | 'already-exhausted'
+    | 'illegal-move'
   readonly message: string
 }
 
@@ -249,6 +262,23 @@ export function applyAction(
       return { ok: true, state: after.state, events: [...drained.events, ...after.events] }
     }
 
+    case 'move': {
+      if (state.pendingChoice) return reject('choice-pending', 'a choice must be answered first')
+      if (state.priority !== action.player) return reject('bad-timing', 'no-priority')
+
+      const refusal = moveRefusal(state, action.player, action.units, action.to, oracle)
+      if (refusal) return reject('illegal-move', refusal)
+
+      // Moving is instantaneous and cannot be reacted to (446.3.c), so it
+      // applies straight to the state rather than going on the Chain.
+      const events: GameEvent[] = []
+      const moved = performMove(state, action.units, action.to, events)
+      // 453 - a Cleanup follows a completed Move; that is where Contested and
+      // Control are settled, and where a Conquer scores.
+      const cleaned = checkWin(runCleanup(moved, events), events)
+      return { ok: true, state: cleaned, events }
+    }
+
     case 'pass': {
       if (state.pendingChoice) {
         return reject('choice-pending', 'a choice must be answered first')
@@ -338,6 +368,20 @@ export function legalActions(
         source: object.id,
         abilityId: ability.id,
       })
+    }
+  }
+
+  // Standard Moves: each ready unit to each destination it may legally reach.
+  for (const object of Object.values(state.objects)) {
+    if (object.controller !== player) continue
+    if (object.zone !== 'base' && object.zone !== 'battlefield') continue
+    const destinations: Location[] = [
+      { kind: 'base', player },
+      ...state.battlefields.map((bf) => ({ kind: 'battlefield', id: bf.id }) as const),
+    ]
+    for (const to of destinations) {
+      if (moveRefusal(state, player, [object.id], to, oracle)) continue
+      actions.push({ type: 'move', player, units: [object.id], to })
     }
   }
 

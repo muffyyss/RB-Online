@@ -11,7 +11,7 @@
  */
 
 import type { Domain } from '../model/domain.js'
-import type { ObjectId, PlayerId } from '../state/game-state.js'
+import type { Location, ObjectId, PlayerId } from '../state/game-state.js'
 
 export type GameEvent =
   // --- units ---
@@ -36,6 +36,15 @@ export type GameEvent =
       readonly power: readonly Domain[]
       readonly universal: number
     }
+
+  // --- board ---
+  | { readonly type: 'moved'; readonly unit: ObjectId; readonly to: Location }
+  | {
+      readonly type: 'battlefield-controlled'
+      readonly battlefield: ObjectId
+      readonly player: PlayerId
+    }
+  | { readonly type: 'battlefield-uncontrolled'; readonly battlefield: ObjectId }
 
   // --- scoring and endgame ---
   | { readonly type: 'points-gained'; readonly player: PlayerId; readonly amount: number }
