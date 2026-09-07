@@ -8,9 +8,17 @@ import type { GameState } from '../src/state/game-state.js'
 import { makeState } from './support/state.js'
 
 const oracle = oracleFrom({
-  'unit-3': { type: 'unit', name: 'Unit', domains: ['fury'], tags: [], might: 3, keywords: [] },
-  rune: { type: 'rune', name: 'Rune', domains: ['fury'], tags: [], keywords: [] },
-  card: { type: 'spell', name: 'Card', domains: ['fury'], tags: [], keywords: [] },
+  'unit-3': {
+    type: 'unit',
+    name: 'Unit',
+    domains: ['fury'],
+    tags: [],
+    might: 3,
+    keywords: [],
+    abilities: [],
+  },
+  rune: { type: 'rune', name: 'Rune', domains: ['fury'], tags: [], keywords: [], abilities: [] },
+  card: { type: 'spell', name: 'Card', domains: ['fury'], tags: [], keywords: [], abilities: [] },
 })
 
 /** A state parked at the start of a turn, with decks to draw and channel from. */

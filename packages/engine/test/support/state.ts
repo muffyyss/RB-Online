@@ -110,6 +110,8 @@ export function makeState(
     priority: 0,
     focus: null,
     pendingChoice: null,
+    resolving: null,
+    consecutivePasses: 0,
     winner: null,
     nextObjectId: specs.length + 1,
     ...overrides,

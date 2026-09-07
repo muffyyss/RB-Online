@@ -110,3 +110,7 @@ export type { AdvanceResult } from './flow/phases.js'
 
 export { applyAction, legalActions } from './actions/index.js'
 export type { ActionResult, GameAction, RuleViolation } from './actions/index.js'
+
+export { addToChain, advanceChain, passOnChain, resumeResolution } from './flow/chain.js'
+export type { ChainResult } from './flow/chain.js'
+export type { EngineAbility } from './effects/oracle.js'

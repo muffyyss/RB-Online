@@ -13,6 +13,7 @@
  * Layout follows rules-spec §3 (zones) and §4 (turn states).
  */
 
+import type { EffectStep } from '../effects/steps.js'
 import type { RngState } from '../rng.js'
 import type { Domain } from '../model/domain.js'
 import type { RunePool } from '../model/cost.js'
@@ -162,6 +163,32 @@ export interface PendingChoice {
   readonly optional: boolean
 }
 
+/** One level of nesting inside a resolving ability: a step list and a cursor. */
+export interface Frame {
+  readonly steps: readonly EffectStep[]
+  readonly index: number
+  /** Set on a `for-each` frame: what it iterates and where it has got to. */
+  readonly loop?: {
+    readonly as: string
+    readonly ids: readonly ObjectId[]
+    readonly position: number
+  }
+}
+
+/**
+ * An ability part-way through resolving.
+ *
+ * Serialisable, and stored on the state rather than held by the caller, so a
+ * match suspended on a choice can be persisted, replayed and resumed by a
+ * different process than the one that started it.
+ */
+export interface Execution {
+  readonly source: ObjectId
+  readonly controller: PlayerId
+  readonly frames: readonly Frame[]
+  readonly bindings: Readonly<Record<string, readonly ObjectId[]>>
+}
+
 export interface GameState {
   readonly rng: RngState
   readonly objects: Readonly<Record<ObjectId, GameObject>>
@@ -185,6 +212,15 @@ export interface GameState {
   readonly focus: PlayerId | null
 
   readonly pendingChoice: PendingChoice | null
+  /** The ability suspended on `pendingChoice`, waiting to resume. */
+  readonly resolving: Execution | null
+  /**
+   * Passes made in sequence without anyone adding to the Chain.
+   *
+   * When every player has passed in a row the newest Finalized item resolves
+   * (339.1). Reset whenever an item is added.
+   */
+  readonly consecutivePasses: number
   readonly winner: PlayerId | null
 
   /** Source of fresh ObjectIds. Part of state so replay stays deterministic. */

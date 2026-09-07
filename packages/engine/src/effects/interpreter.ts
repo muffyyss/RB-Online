@@ -18,28 +18,18 @@ import type { GameEvent } from './events.js'
 import { resolveSelector, selectorCount } from './selector.js'
 import type { SelectorContext } from './selector.js'
 import { SeededRng } from '../rng.js'
-import type { GameObject, GameState, ObjectId, PlayerId, PlayerState } from '../state/game-state.js'
+import type {
+  Execution,
+  Frame,
+  GameObject,
+  GameState,
+  ObjectId,
+  PlayerId,
+  PlayerState,
+} from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
 
-/** One level of nesting: a step list and how far through it we are. */
-export interface Frame {
-  readonly steps: readonly EffectStep[]
-  readonly index: number
-  /** Set on a `for-each` frame: what it iterates and where it has got to. */
-  readonly loop?: {
-    readonly as: string
-    readonly ids: readonly ObjectId[]
-    readonly position: number
-  }
-}
-
-/** A suspended or in-progress ability. Serialisable, so it survives replay. */
-export interface Execution {
-  readonly source: ObjectId
-  readonly controller: PlayerId
-  readonly frames: readonly Frame[]
-  readonly bindings: Readonly<Record<string, readonly ObjectId[]>>
-}
+export type { Execution, Frame } from '../state/game-state.js'
 
 export type ExecutionResult =
   | { readonly status: 'done'; readonly state: GameState; readonly events: readonly GameEvent[] }

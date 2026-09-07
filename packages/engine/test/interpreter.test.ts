@@ -14,10 +14,19 @@ const oracle = oracleFrom({
     tags: ['Demacia'],
     might: 2,
     keywords: [],
+    abilities: [],
   },
-  'unit-5': { type: 'unit', name: 'Big', domains: ['fury'], tags: [], might: 5, keywords: [] },
-  spell: { type: 'spell', name: 'Zap', domains: ['fury'], tags: [], keywords: [] },
-  rune: { type: 'rune', name: 'Rune', domains: ['fury'], tags: [], keywords: [] },
+  'unit-5': {
+    type: 'unit',
+    name: 'Big',
+    domains: ['fury'],
+    tags: [],
+    might: 5,
+    keywords: [],
+    abilities: [],
+  },
+  spell: { type: 'spell', name: 'Zap', domains: ['fury'], tags: [], keywords: [], abilities: [] },
+  rune: { type: 'rune', name: 'Rune', domains: ['fury'], tags: [], keywords: [], abilities: [] },
 })
 
 /** Put a unit on a battlefield so location-aware selectors have something to find. */

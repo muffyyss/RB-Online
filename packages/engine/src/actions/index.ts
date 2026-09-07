@@ -10,8 +10,7 @@
 
 import type { GameEvent } from '../effects/events.js'
 import type { CardOracle } from '../effects/oracle.js'
-import { resolveChoice } from '../effects/interpreter.js'
-import type { Execution } from '../effects/interpreter.js'
+import { advanceChain, passOnChain, resumeResolution } from '../flow/chain.js'
 import { advanceFlow, checkWin, endMainPhase, VICTORY_SCORE } from '../flow/phases.js'
 import type { GameState, ObjectId, PlayerId } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
@@ -58,7 +57,6 @@ export function applyAction(
   state: GameState,
   action: GameAction,
   oracle: CardOracle,
-  execution?: Execution,
 ): ActionResult {
   if (state.winner !== null) {
     return reject('game-over', 'the game has already been won')
@@ -95,12 +93,27 @@ export function applyAction(
           return reject('invalid-selection', `${id} was not offered as a candidate`)
         }
       }
-      if (!execution) {
+      const suspended = state.resolving
+      if (!suspended) {
         return reject('not-your-choice', 'no suspended effect to resume')
       }
 
-      const resumed = resolveChoice(state, execution, pending.binding, action.chosen, oracle)
-      const advanced = advanceFlow(resumed.state)
+      // The answer fills the binding the `choose` step was waiting on.
+      const resumed = resumeResolution(
+        {
+          ...state,
+          resolving: {
+            ...suspended,
+            bindings: { ...suspended.bindings, [pending.binding]: action.chosen },
+          },
+        },
+        { ...suspended, bindings: { ...suspended.bindings, [pending.binding]: action.chosen } },
+        oracle,
+      )
+      const advanced =
+        resumed.state.chain.length === 0 && resumed.state.pendingChoice === null
+          ? advanceFlow(resumed.state)
+          : { state: resumed.state, events: [] as readonly GameEvent[] }
       return {
         ok: true,
         state: advanced.state,
@@ -116,8 +129,23 @@ export function applyAction(
         return reject('not-your-priority', 'you do not have priority')
       }
 
-      // With an empty Chain in the Main Phase, passing ends the turn (316.9).
-      // Once the Chain exists, passing feeds the FEPR loop instead (339).
+      // With a Chain in play, passing feeds the FEPR loop (338.1.b, 339).
+      if (state.chain.length > 0) {
+        const passed = passOnChain(state)
+        const drained = advanceChain(passed, oracle)
+        // Chain emptied: hand control back to the phase machine.
+        const after =
+          drained.state.chain.length === 0 && drained.state.pendingChoice === null
+            ? advanceFlow(drained.state)
+            : { state: drained.state, events: [] as readonly GameEvent[] }
+        return {
+          ok: true,
+          state: after.state,
+          events: [...drained.events, ...after.events],
+        }
+      }
+
+      // An empty Chain in the Main Phase: passing ends the turn (316.9).
       const events: GameEvent[] = []
       const ended = endMainPhase(state)
       const advanced = advanceFlow(checkWin(ended, events))
