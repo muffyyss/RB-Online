@@ -200,6 +200,14 @@ export interface GameState {
   readonly turnNumber: number
   readonly phase: Phase
   readonly step: Step
+  /**
+   * Whether the current step's task has already run.
+   *
+   * A step's task fires once, when the step is entered. Without this, returning
+   * to the Main Phase after a Chain resolves would re-run its entry task and
+   * empty both Rune Pools (316.3) in the middle of a turn.
+   */
+  readonly stepTaskDone: boolean
 
   /** The Chain exists only while it holds an item (330). */
   readonly chain: readonly ChainItem[]

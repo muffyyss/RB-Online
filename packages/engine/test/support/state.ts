@@ -106,6 +106,7 @@ export function makeState(
     turnNumber: 1,
     phase: 'main',
     step: 'main',
+    stepTaskDone: true,
     chain: [],
     priority: 0,
     focus: null,

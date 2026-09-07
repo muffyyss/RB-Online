@@ -114,3 +114,13 @@ export type { ActionResult, GameAction, RuleViolation } from './actions/index.js
 export { addToChain, advanceChain, passOnChain, resumeResolution } from './flow/chain.js'
 export type { ChainResult } from './flow/chain.js'
 export type { EngineAbility } from './effects/oracle.js'
+
+export { canPlayNow, timingRefusal } from './flow/timing.js'
+export type { TimingRefusal } from './flow/timing.js'
+export { pay, usableFor } from './model/cost.js'
+export type {
+  PaymentTarget,
+  PowerAssignment,
+  Resources,
+  RestrictedResources,
+} from './model/cost.js'

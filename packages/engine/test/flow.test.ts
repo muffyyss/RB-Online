@@ -36,7 +36,7 @@ function atTurnStart(overrides: Partial<GameState> = {}): GameState {
       { id: 'd3', cardId: 'card', owner: 1, zone: 'mainDeck' },
       { id: 'd4', cardId: 'card', owner: 1, zone: 'mainDeck' },
     ],
-    { phase: 'awaken', step: 'ready', priority: null, ...overrides },
+    { phase: 'awaken', step: 'ready', stepTaskDone: false, priority: null, ...overrides },
   )
 }
 
@@ -293,13 +293,13 @@ describe('actions', () => {
     expect(after.ok).toBe(false)
     if (after.ok) return
     expect(after.error.code).toBe('game-over')
-    expect(legalActions(conceded.state, 1)).toEqual([])
+    expect(legalActions(conceded.state, 1, oracle)).toEqual([])
   })
 
   it('offers pass only to the player holding priority', () => {
     const { state } = advanceFlow(atTurnStart())
-    expect(legalActions(state, 0).map((a) => a.type)).toContain('pass')
-    expect(legalActions(state, 1).map((a) => a.type)).not.toContain('pass')
+    expect(legalActions(state, 0, oracle).map((a) => a.type)).toContain('pass')
+    expect(legalActions(state, 1, oracle).map((a) => a.type)).not.toContain('pass')
   })
 })
 

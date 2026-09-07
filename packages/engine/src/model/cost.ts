@@ -152,15 +152,23 @@ function totalPower(pool: Resources): number {
  * have paid. We sort most-constrained-first and backtrack, which is exact.
  * Costs are tiny (a handful of symbols over six Domains), so the search is cheap.
  */
-function canPayPower(
+/** Which Power a payment actually consumes. */
+export interface PowerAssignment {
+  readonly fromDomain: Readonly<Partial<Record<Domain, number>>>
+  readonly fromUniversal: number
+}
+
+function assignPower(
   requirements: readonly (ReadonlySet<Domain> | null)[],
   pool: Resources,
-): boolean {
-  if (requirements.length === 0) return true
-  if (requirements.length > totalPower(pool)) return false
+): PowerAssignment | null {
+  if (requirements.length === 0) return { fromDomain: {}, fromUniversal: 0 }
+  if (requirements.length > totalPower(pool)) return null
 
   const available: Partial<Record<Domain, number>> = { ...pool.power }
   let universal = pool.universal
+  const spent: Partial<Record<Domain, number>> = {}
+  let spentUniversal = 0
 
   // Most constrained first: fewer acceptable Domains means fewer ways to pay.
   const ordered = [...requirements].sort(
@@ -176,21 +184,25 @@ function canPayPower(
       const held = available[domain] ?? 0
       if (held > 0) {
         available[domain] = held - 1
+        spent[domain] = (spent[domain] ?? 0) + 1
         if (solve(index + 1)) return true
         available[domain] = held
+        spent[domain] = (spent[domain] ?? 1) - 1
       }
     }
     // Universal Power pays any Domain's cost (135.2.e.5.b). Try it last so
     // specific Power is consumed first and stays out of the way of [A].
     if (universal > 0) {
       universal -= 1
+      spentUniversal += 1
       if (solve(index + 1)) return true
       universal += 1
+      spentUniversal -= 1
     }
     return false
   }
 
-  return solve(0)
+  return solve(0) ? { fromDomain: spent, fromUniversal: spentUniversal } : null
 }
 
 /**
@@ -207,7 +219,73 @@ export function canPay(
 ): boolean {
   const usable = usableFor(pool, target)
   if (usable.energy < cost.energy) return false
-  return canPayPower(resolveRequirements(cost, cardDomains), usable)
+  return assignPower(resolveRequirements(cost, cardDomains), usable) !== null
+}
+
+/**
+ * Spend a cost from the pool, or return `null` if it cannot be paid.
+ *
+ * Restricted resources are spent **first**. They are strictly less flexible than
+ * unrestricted ones, so using them while they are legal is never worse than
+ * saving them — and they vanish when the pool empties anyway (167.1). The rules
+ * would let the player choose; this choice can only ever help them.
+ */
+export function pay(
+  cost: Cost,
+  cardDomains: readonly Domain[],
+  pool: RunePool,
+  target?: PaymentTarget,
+): RunePool | null {
+  const usable = usableFor(pool, target)
+  if (usable.energy < cost.energy) return null
+  const assignment = assignPower(resolveRequirements(cost, cardDomains), usable)
+  if (!assignment) return null
+
+  const applicable = (bucket: RestrictedResources) =>
+    target !== undefined && bucket.onlyFor.includes(target.cardType)
+
+  let energyLeft = cost.energy
+  let universalLeft = assignment.fromUniversal
+  const domainLeft: Partial<Record<Domain, number>> = { ...assignment.fromDomain }
+
+  const restricted = pool.restricted.map((bucket) => {
+    if (!applicable(bucket)) return bucket
+    const takeEnergy = Math.min(energyLeft, bucket.energy)
+    energyLeft -= takeEnergy
+    const takeUniversal = Math.min(universalLeft, bucket.universal)
+    universalLeft -= takeUniversal
+    const power: Partial<Record<Domain, number>> = { ...bucket.power }
+    for (const domain of DOMAINS) {
+      const want = domainLeft[domain] ?? 0
+      if (want <= 0) continue
+      const take = Math.min(want, power[domain] ?? 0)
+      if (take > 0) {
+        power[domain] = (power[domain] ?? 0) - take
+        domainLeft[domain] = want - take
+      }
+    }
+    return {
+      ...bucket,
+      energy: bucket.energy - takeEnergy,
+      universal: bucket.universal - takeUniversal,
+      power,
+    }
+  })
+
+  const power: Partial<Record<Domain, number>> = { ...pool.power }
+  for (const domain of DOMAINS) {
+    const want = domainLeft[domain] ?? 0
+    if (want > 0) power[domain] = (power[domain] ?? 0) - want
+  }
+
+  return {
+    energy: pool.energy - energyLeft,
+    power,
+    universal: pool.universal - universalLeft,
+    // Drop buckets that have been spent dry, so the pool does not accumulate
+    // empty entries over a turn.
+    restricted: restricted.filter((b) => b.energy > 0 || b.universal > 0 || totalPower(b) > 0),
+  }
 }
 
 /** Total resource count a cost demands — handy for sorting and display. */

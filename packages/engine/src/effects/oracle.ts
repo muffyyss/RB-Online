@@ -49,6 +49,8 @@ export interface CardFacts {
   readonly domains: readonly Domain[]
   /** Tags carry no innate meaning but card text references them (133.8.a). */
   readonly tags: readonly Tag[]
+  /** Printed cost, Main Deck cards only (131.1). */
+  readonly cost?: Cost
   /** Printed Might, units only (143.2). Modifiers are applied by the layer system. */
   readonly might?: number
   readonly keywords: readonly Keyword[]

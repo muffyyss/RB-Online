@@ -217,6 +217,7 @@ function beginTurn(state: GameState): GameState {
     turnNumber: state.turnNumber + 1,
     phase: 'awaken',
     step: 'ready',
+    stepTaskDone: false,
     priority: null,
     focus: null,
   }
@@ -340,21 +341,25 @@ export function advanceFlow(state: GameState): AdvanceResult {
 
     // The Main Phase is where the Turn Player acts; hand them Priority and wait.
     if (def.grantsPriority) {
-      if (current.priority === null) {
-        current = runStepTask(current, events)
-        current = { ...current, priority: current.turnPlayer }
+      if (!current.stepTaskDone) {
+        current = { ...runStepTask(current, events), stepTaskDone: true }
         current = checkWin(current, events)
+      }
+      if (current.priority === null) {
+        current = { ...current, priority: current.turnPlayer }
       }
       break
     }
 
-    current = runStepTask(current, events)
-    current = checkWin(current, events)
-    if (current.winner !== null) break
+    if (!current.stepTaskDone) {
+      current = { ...runStepTask(current, events), stepTaskDone: true }
+      current = checkWin(current, events)
+      if (current.winner !== null) break
+    }
 
     const nextDef = TURN_STEPS[index + 1]
     current = nextDef
-      ? { ...current, phase: nextDef.phase, step: nextDef.step }
+      ? { ...current, phase: nextDef.phase, step: nextDef.step, stepTaskDone: false }
       : beginTurn(current)
   }
 
@@ -363,5 +368,12 @@ export function advanceFlow(state: GameState): AdvanceResult {
 
 /** End the Main Phase and move to the Ending Phase (316.9). */
 export function endMainPhase(state: GameState): GameState {
-  return { ...state, phase: 'ending', step: 'ending', priority: null, focus: null }
+  return {
+    ...state,
+    phase: 'ending',
+    step: 'ending',
+    stepTaskDone: false,
+    priority: null,
+    focus: null,
+  }
 }
