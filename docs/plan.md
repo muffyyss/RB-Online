@@ -394,10 +394,13 @@ Registration happens **inside the desktop client** — no website needed. Screen
 **Storage & security:**
 
 - **argon2id** hashing, memory ≥ 64 MB, unique salt per user. Never store the password.
-- Registration is **idempotent-safe against enumeration**: identical response and timing
-  whether or not the email already exists. The "email taken" signal goes out by email,
-  not in the API response. (Username collisions _are_ reported directly — usernames are
-  public by nature.)
+- **Duplicates are reported plainly** — "that email already has an account". The usual
+  defence is to answer identically either way, but it is not worth its cost here:
+  registration is invite-gated, so nobody can probe without a code, and with no email
+  being sent there would be no way to tell a legitimate returning player why nothing
+  happened. A deliberate trade, reversible via `revealDuplicates` if the server ever
+  opens to the public. Timing is equalised regardless, so response time alone never
+  answers the question.
 - Rate limited per-IP and per-email (`@fastify/rate-limit`), with a short artificial
   delay on failures.
 - Every registration writes an `audit_log` row (ip, user agent, timestamp).
@@ -671,9 +674,9 @@ npm run test -w apps/server            # auth flows, deck legality, WS protocol
 - Register with a valid invite code → account created in `pending`/`active` per mode.
 - Register with an **invalid or exhausted** invite code → rejected, no user row created.
 - Register with a **duplicate username** differing only in case (`Muffy` vs `muffy`) → rejected.
-- Register with a **duplicate email** → response and timing are **identical** to a fresh
-  signup (no account enumeration); verify no second user row exists.
-- Weak password (`password123`) → rejected by zxcvbn with a helpful message.
+- Register with a **duplicate email** → rejected with a clear message, and no second
+  user row exists. Timing matches a fresh signup.
+- Weak password (`password123`) → rejected as too common, with a helpful message.
 - Hammer `/api/auth/register` 20× → rate limiter blocks; check the `audit_log` rows.
 - Confirm the DB stores an `argon2id$...` hash and **never** the plaintext password.
 
