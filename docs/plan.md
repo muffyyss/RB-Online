@@ -8,15 +8,15 @@ application so you and a small community of friends can play together. The repos
 
 **Requirements locked in:**
 
-|                  |                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Stack**        | "Newest and popular" → **TypeScript everywhere** (rationale below)                                                 |
-| **Server**       | **Windows Server** — native services, no Docker                                                                    |
-| **V1 scope**     | **1v1 only**, plus deck builder / collection                                                                       |
-| **Cards**        | **Origins: Proving Grounds (OGS)** starter set only — 41 cards, 4 decks. Other sets added later, once V1 is proven |
-| **Accounts**     | **Nothing exists — build registration _and_ login from scratch**, in-client                                        |
-| **Audience**     | Friends + small community. **Non-commercial, no monetization**                                                     |
-| **Card effects** | Must be **easy to change later** (e.g. tuning a skill from 3 → 2) without touching engine code                     |
+|                  |                                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Stack**        | "Newest and popular" → **TypeScript everywhere** (rationale below)                                                                                     |
+| **Server**       | **Windows Server** — native services, no Docker                                                                                                        |
+| **V1 scope**     | **1v1 only**, plus deck builder / collection                                                                                                           |
+| **Cards**        | **Origins: Proving Grounds (OGS)** starter set only — 41 cards, 4 decks. Other sets added later, once V1 is proven                                     |
+| **Accounts**     | Registration and login built from scratch, in-client, invite-gated. **Guests may join rooms without registering; only registered players create them** |
+| **Audience**     | Friends + small community. **Non-commercial, no monetization**                                                                                         |
+| **Card effects** | Must be **easy to change later** (e.g. tuning a skill from 3 → 2) without touching engine code                                                         |
 
 **Why TypeScript everywhere:** the most important property of a TCG is that the
 _rules engine runs identically on server and client_. The server must be authoritative
