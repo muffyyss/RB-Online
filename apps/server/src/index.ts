@@ -17,3 +17,24 @@ export {
   users,
 } from './db/schema.js'
 export type { UserRole, UserStatus } from './db/schema.js'
+
+export { buildApp } from './app.js'
+export type { AppOptions } from './app.js'
+export { loadConfig } from './config.js'
+export type { Config } from './config.js'
+export { connect } from './db/client.js'
+export type { Connection } from './db/client.js'
+export {
+  createInvite,
+  listInvites,
+  listUsers,
+  revokeInvite,
+  setUserRole,
+  setUserStatus,
+} from './admin/index.js'
+export type {
+  CreatedInvite,
+  CreateInviteOptions,
+  InviteSummary,
+  UserSummary,
+} from './admin/index.js'

@@ -625,6 +625,30 @@ a new installer at all — only client code changes do._
 
 ---
 
+### Getting the first account in
+
+Registration needs an invite code and issuing a code needs an administrator, so
+there has to be a way in from outside the application. That is `apps/server`'s
+admin CLI, run on the server itself with the same `DATABASE_URL`:
+
+```bash
+npm run admin -- invite create --uses 1 --days 7 --label "for Sam"
+```
+
+The code is printed **once**. Only its hash is stored, so a lost code is
+reissued, never recovered — `invite list` can show that a code exists, who it
+was for and whether it has been spent, but not the code itself.
+
+The rest:
+
+```bash
+npm run admin -- invite list
+npm run admin -- invite revoke <id>
+npm run admin -- user list
+npm run admin -- user suspend <username>
+npm run admin -- user promote <username>
+```
+
 ## Part 7 — Windows Server deployment
 
 Native services — Windows Server + Docker is more pain than it's worth here:

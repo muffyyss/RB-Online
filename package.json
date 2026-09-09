@@ -24,7 +24,9 @@
     "sim": "npm run start -w @rb/sim --",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "rules:extract": "python scripts/rules/extract_rules.py",
-    "rules:check": "python scripts/rules/check_citations.py"
+    "rules:check": "python scripts/rules/check_citations.py",
+    "admin": "npm run cli -w @rb/server --",
+    "server": "npm run dev -w @rb/server"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
