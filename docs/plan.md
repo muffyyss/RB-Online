@@ -425,6 +425,42 @@ accounts can queue for matches or create rooms.
 **Admin tooling (small CLI, part of M5):** create invite codes, list/suspend users,
 force password reset, promote to admin. A CLI is enough — no admin web UI in V1.
 
+### Guest accounts
+
+**Confirmed with the project owner.** A player who has not registered still gets
+in, under an automatic name like `Guest000001`. Registering is what unlocks a
+chosen name and, later, profile customisation. (Customisation itself is not in
+scope yet — only the account model is being fixed here.)
+
+**Guests may join a room, never create one.** This is what stops guest access
+from undoing the invite gate. To play at all you need a room code, and only a
+registered player can produce one — so somebody already in the community has to
+let you in. It mirrors how a private game actually works, and it is
+self-limiting: a bot cannot farm guest accounts because it cannot get into a
+room without being handed a code.
+
+**A guest lives on their machine until the game is uninstalled.** The identity
+is stored locally alongside the deck presets, so quitting and reopening keeps
+the same name and the same decks.
+
+**The number comes from the server, once.** Sequential names like `Guest000001`
+need a counter, which cannot live on the client — two machines would both call
+themselves `Guest000001`. So the server allocates a number the first time a
+guest joins a room, and the client stores it forever after. That gets the
+sequential name and the local lifetime at the same time, and the allocation is
+naturally rate-limited: you only get a number by entering a real room.
+
+**Upgrading to a real account keeps everything.** A guest who registers keeps
+their decks — those are local files and never move — and their history follows
+them, because the server links the guest id to the new user id rather than
+starting fresh. The registration flow therefore has to accept an optional guest
+id to adopt, which is worth building in from the start rather than retrofitting.
+
+What this means for the schema, when it is built: guests need a row (a number
+has to be unique and allocated), but not credentials, an email, or an invite
+redemption. Most likely a `guests` table keyed by a client-generated id, with
+`users.adopted_guest_id` recording an upgrade.
+
 ### Login & sessions
 
 - **Access token:** JWT, 15-minute expiry, carries `sub` / `username` / `role`.
