@@ -26,7 +26,9 @@
     "rules:extract": "python scripts/rules/extract_rules.py",
     "rules:check": "python scripts/rules/check_citations.py",
     "admin": "npm run cli -w @rb/server --",
-    "server": "npm run dev -w @rb/server"
+    "server": "npm run dev -w @rb/server",
+    "db:generate": "npm run db:generate -w @rb/server",
+    "db:migrate": "npm run db:migrate -w @rb/server"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",

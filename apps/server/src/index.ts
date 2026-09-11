@@ -8,14 +8,7 @@ export {
   hashesMatch,
   normaliseInviteCode,
 } from './auth/invite.js'
-export {
-  CREATE_TABLES,
-  auditLog,
-  inviteCodes,
-  inviteRedemptions,
-  userCredentials,
-  users,
-} from './db/schema.js'
+export { auditLog, inviteCodes, inviteRedemptions, userCredentials, users } from './db/schema.js'
 export type { UserRole, UserStatus } from './db/schema.js'
 
 export { buildApp } from './app.js'

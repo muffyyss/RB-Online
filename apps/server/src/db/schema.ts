@@ -13,6 +13,10 @@
  * **Invite codes are hashed.** A leaked database should not hand someone a
  * working set of registration codes, so only a hash is stored — the same
  * reasoning as passwords, at lower stakes.
+ *
+ * This file describes the intent; `drizzle/` holds the history. Change
+ * something here, then run `npm run db:generate` to produce the migration —
+ * never hand-edit a migration that has already been applied anywhere.
  */
 
 import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core'
@@ -120,64 +124,3 @@ export const auditLog = pgTable(
   },
   (table) => [index('audit_log_created_idx').on(table.createdAt)],
 )
-
-/**
- * DDL for the embedded Postgres used in tests, and the starting point for the
- * real migration. Kept beside the schema so the two cannot drift apart
- * unnoticed.
- *
- * A plain string rather than a drizzle `sql` template: this is several
- * statements, and Postgres's extended query protocol — which any parameterised
- * driver call uses — accepts exactly one. It has to be run as a script.
- */
-export const CREATE_TABLES = `
-  CREATE TABLE IF NOT EXISTS users (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    username text NOT NULL,
-    username_normalised text NOT NULL,
-    email text NOT NULL,
-    email_normalised text NOT NULL,
-    status text NOT NULL DEFAULT 'active',
-    role text NOT NULL DEFAULT 'player',
-    created_at timestamptz NOT NULL DEFAULT now()
-  );
-  CREATE UNIQUE INDEX IF NOT EXISTS users_username_normalised_key ON users (username_normalised);
-  CREATE UNIQUE INDEX IF NOT EXISTS users_email_normalised_key ON users (email_normalised);
-
-  CREATE TABLE IF NOT EXISTS user_credentials (
-    user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    password_hash text NOT NULL,
-    password_updated_at timestamptz NOT NULL DEFAULT now()
-  );
-
-  CREATE TABLE IF NOT EXISTS invite_codes (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    code_hash text NOT NULL,
-    label text,
-    created_by uuid REFERENCES users(id) ON DELETE SET NULL,
-    max_uses integer NOT NULL DEFAULT 1,
-    used_count integer NOT NULL DEFAULT 0,
-    expires_at timestamptz,
-    created_at timestamptz NOT NULL DEFAULT now()
-  );
-  CREATE UNIQUE INDEX IF NOT EXISTS invite_codes_hash_key ON invite_codes (code_hash);
-
-  CREATE TABLE IF NOT EXISTS invite_redemptions (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    invite_code_id uuid NOT NULL REFERENCES invite_codes(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    redeemed_at timestamptz NOT NULL DEFAULT now()
-  );
-  CREATE INDEX IF NOT EXISTS invite_redemptions_code_idx ON invite_redemptions (invite_code_id);
-
-  CREATE TABLE IF NOT EXISTS audit_log (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id uuid REFERENCES users(id) ON DELETE SET NULL,
-    event text NOT NULL,
-    detail text,
-    ip text,
-    user_agent text,
-    created_at timestamptz NOT NULL DEFAULT now()
-  );
-  CREATE INDEX IF NOT EXISTS audit_log_created_idx ON audit_log (created_at);
-`

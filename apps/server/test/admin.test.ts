@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 
 import {
@@ -13,18 +13,22 @@ import { hashInviteCode } from '../src/auth/invite.js'
 import { registerUser } from '../src/auth/register.js'
 import type { Database } from '../src/auth/register.js'
 import { auditLog, inviteCodes, users } from '../src/db/schema.js'
-import { createTestDb, validRegistration } from './support/db.js'
+import { createTestDb, resetDb, validRegistration } from './support/db.js'
 import type { TestDb } from './support/db.js'
 
 let harness: TestDb
 let db: Database
 
-beforeEach(async () => {
+beforeAll(async () => {
   harness = await createTestDb()
   db = harness.db
 })
 
-afterEach(async () => {
+beforeEach(async () => {
+  await resetDb(db)
+})
+
+afterAll(async () => {
   await harness?.close()
 })
 

@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { FastifyInstance, InjectOptions } from 'fastify'
 
 import { buildApp } from '../src/app.js'
 import type { Config } from '../src/config.js'
 import type { Database } from '../src/auth/register.js'
 import { users } from '../src/db/schema.js'
-import { createTestDb, seedInvite, validRegistration } from './support/db.js'
+import { createTestDb, resetDb, seedInvite, validRegistration } from './support/db.js'
 import type { TestDb } from './support/db.js'
 
 /**
@@ -35,13 +35,22 @@ async function start(config: Partial<Config> = {}): Promise<void> {
   await app.ready()
 }
 
-beforeEach(async () => {
+beforeAll(async () => {
   harness = await createTestDb()
   db = harness.db
 })
 
+beforeEach(async () => {
+  await resetDb(db)
+})
+
+// The app is rebuilt per test because several tests want a different rate
+// limit, and a limiter carries state. The database is shared and truncated.
 afterEach(async () => {
   await app?.close()
+})
+
+afterAll(async () => {
   await harness?.close()
 })
 

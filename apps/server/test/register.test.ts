@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 
 import { registerUser } from '../src/auth/register.js'
@@ -11,20 +11,22 @@ import {
   userCredentials,
   users,
 } from '../src/db/schema.js'
-import { createTestDb, seedInvite, validRegistration } from './support/db.js'
+import { createTestDb, resetDb, seedInvite, validRegistration } from './support/db.js'
 import type { TestDb } from './support/db.js'
 
 let harness: TestDb
 let db: Database
 
-beforeEach(async () => {
+beforeAll(async () => {
   harness = await createTestDb()
   db = harness.db
 })
 
-afterEach(async () => {
-  // Guarded: if setup failed, the real error should surface rather than a
-  // null dereference in teardown.
+beforeEach(async () => {
+  await resetDb(db)
+})
+
+afterAll(async () => {
   await harness?.close()
 })
 
