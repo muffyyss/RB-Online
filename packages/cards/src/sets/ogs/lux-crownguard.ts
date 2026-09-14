@@ -28,6 +28,6 @@ export default defineCard({
       steps: [{ op: 'add', energy: 2, onlyFor: ['spell'] }],
     },
   ],
-  text: '[E] [Reaction] — Add [2]. Use only to play spells.',
+  text: "[E]: [Reaction] — [Add] [2]. Use only to play spells. (Abilities that add resources can't be reacted to.)",
   flavor: "I've been hiding my light long enough.",
 })

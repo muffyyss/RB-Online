@@ -22,8 +22,8 @@ import {
 } from '@rb/engine'
 import { z } from 'zod'
 
-/** Sets currently authored. V1 is Origins: Proving Grounds. */
-export const SET_CODES = ['ogs'] as const
+/** Sets currently authored: Origins: Proving Grounds, and the Origins cards its decks use. */
+export const SET_CODES = ['ogs', 'ogn'] as const
 
 export type SetCode = (typeof SET_CODES)[number]
 
@@ -69,6 +69,10 @@ export const TRIGGERS = [
   'killed',
   'start-of-turn',
   'end-of-turn',
+  'attack', // "When I attack"
+  'defend', // "When you defend here"
+  /** "When I move" - any move, not only a Standard Move. */
+  'moves',
   'conquer', // 471.2.a
   'hold', // 471.2.b
   'deals-damage',

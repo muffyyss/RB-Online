@@ -338,7 +338,7 @@ change things later.
 
 ### V1 card scope
 
-**Origins: Proving Grounds (OGS)** — 24 set-exclusive cards, 4 preconstructed decks. _Corrected: an earlier draft said 41. The set has no Runes, Battlefields or Gear of its own; the decks take those from the Origins base set (OGN), so a legal deck needs some OGN cards too._
+**Origins: Proving Grounds (OGS)** — 24 set-exclusive cards, 4 preconstructed decks. _Corrected: an earlier draft said 41. The set has no Runes, Battlefields or Gear of its own; the decks take those from the Origins base set (OGN)._ **As built:** all 24 OGS cards plus the 45 OGN cards the four decks use are entered, and the four boxed decks ship as ready-made presets (`packages/cards/src/decks/proving-grounds.ts`). The boxed decks bring one Battlefield each, not the three a Duel requires (485.4.a), so the validator has a `starter` format that differs from `duel` only in that count. Each deck's Chosen Champion is our pick, since the box does not name one.
 (**Annie, Master Yi, Lux, Garen**). Realistically ~1 week of authoring, not months.
 
 Sets are separate folders under `src/sets/`, registered in a set index. Adding Origins

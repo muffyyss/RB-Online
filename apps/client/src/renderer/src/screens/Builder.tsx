@@ -113,6 +113,12 @@ export function Builder({ presetId }: { presetId: string | null }) {
   const [deck, setDeck] = useState<DeckList>(existing?.deck ?? emptyDeck())
   const [query, setQuery] = useState('')
   const validation = useMemo(() => validateDeck(deck, oracle), [deck])
+  // The boxed decks bring one battlefield; they are playable in the starter
+  // format even though a Duel needs three.
+  const starterLegal = useMemo(
+    () => !validation.valid && validateDeck(deck, oracle, 'starter').valid,
+    [deck, validation.valid],
+  )
   const problems = useMemo(() => {
     // An empty slot is reported by the engine as an unknown card with no id,
     // which reads as a bug. Say what is actually missing instead.
@@ -162,8 +168,8 @@ export function Builder({ presetId }: { presetId: string | null }) {
           ))}
         </div>
         <p className="hint">
-          Only part of the Proving Grounds set has been entered so far, so no deck can be fully
-          legal yet.
+          Every Proving Grounds card is here, plus the Origins cards its four decks use. The rest of
+          Origins has not been entered yet.
         </p>
       </section>
 
@@ -194,12 +200,19 @@ export function Builder({ presetId }: { presetId: string | null }) {
           <dd>{validation.domains.join(', ') || '—'}</dd>
         </dl>
 
-        <div className={validation.valid ? 'legality ok' : 'legality warn'}>
+        <div className={validation.valid || starterLegal ? 'legality ok' : 'legality warn'}>
           {validation.valid
             ? 'Legal deck'
-            : `${String(problems.length)} ${problems.length === 1 ? 'problem' : 'problems'}`}
+            : starterLegal
+              ? 'Starter legal (one battlefield)'
+              : `${String(problems.length)} ${problems.length === 1 ? 'problem' : 'problems'}`}
         </div>
-        {!validation.valid && (
+        {starterLegal && (
+          <p className="hint">
+            Legal as the boxed decks are, with one battlefield. A Duel needs three.
+          </p>
+        )}
+        {!validation.valid && !starterLegal && (
           <ul className="problems">
             {problems.slice(0, 12).map((problem) => (
               <li key={problem.key}>

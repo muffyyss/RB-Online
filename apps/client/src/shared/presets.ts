@@ -80,3 +80,22 @@ export function removeCard(
 export function countOf(cards: readonly string[], id: string): number {
   return cards.reduce((total, card) => total + (card === id ? 1 : 0), 0)
 }
+
+/**
+ * Add ready-made decks the player does not already have.
+ *
+ * A starter deck keeps the same preset id every time, so pressing the button
+ * twice does not duplicate it � and a copy the player has since edited is left
+ * alone rather than reset.
+ */
+export function addStarterDecks(
+  file: PresetFile,
+  starters: readonly { id: string; name: string; deck: DeckList }[],
+  now: number,
+): { file: PresetFile; added: number } {
+  const have = new Set(file.presets.map((p) => p.id))
+  const fresh = starters
+    .filter((s) => !have.has(s.id))
+    .map((s) => ({ id: s.id, name: cleanName(s.name), deck: s.deck, updatedAt: now }))
+  return { file: { ...file, presets: [...file.presets, ...fresh] }, added: fresh.length }
+}

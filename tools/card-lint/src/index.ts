@@ -73,18 +73,31 @@ function opsUsed(card: CardDefinition): Set<string> {
   return ops
 }
 
-function testFilesFor(): Set<string> {
-  if (!existsSync(TEST_DIR)) return new Set()
+interface TestIndex {
+  /** Test file names without `.test.ts`, for the one-file-per-card convention. */
+  readonly names: Set<string>
+  /** Every card id quoted in any test, for table-driven set tests. */
+  readonly ids: Set<string>
+}
+
+function testFilesFor(): TestIndex {
   const names = new Set<string>()
+  const ids = new Set<string>()
+  if (!existsSync(TEST_DIR)) return { names, ids }
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name)
       if (entry.isDirectory()) walk(path)
-      else if (entry.name.endsWith('.test.ts')) names.add(entry.name.replace(/\.test\.ts$/, ''))
+      else if (entry.name.endsWith('.test.ts')) {
+        names.add(entry.name.replace(/\.test\.ts$/, ''))
+        for (const match of readFileSync(path, 'utf8').matchAll(/'([A-Z]{3}-\d{3})'/g)) {
+          if (match[1]) ids.add(match[1])
+        }
+      }
     }
   }
   walk(TEST_DIR)
-  return names
+  return { names, ids }
 }
 
 function main(): number {
@@ -117,8 +130,12 @@ function main(): number {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
-    if (!tests.has(slug)) {
-      fail(label, `no test — expected packages/cards/test/${slug}.test.ts`)
+    // Either its own test file, or a table-driven test that names its id.
+    if (!tests.names.has(slug) && !tests.ids.has(card.id)) {
+      fail(
+        label,
+        `no test — expected packages/cards/test/${slug}.test.ts, or a test naming '${card.id}'`,
+      )
     }
 
     // 4. Ops the interpreter does not handle would silently do nothing.

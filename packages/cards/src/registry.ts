@@ -10,10 +10,11 @@
 
 import type { CardDefinition } from './schema.js'
 import { cardFullName } from './schema.js'
+import { OGN_CARDS } from './sets/ogn/index.js'
 import { OGS_CARDS } from './sets/ogs/index.js'
 
 /** Every authored card, ordered by id so the content hash is stable. */
-export const ALL_CARDS: readonly CardDefinition[] = [...OGS_CARDS].sort((a, b) =>
+export const ALL_CARDS: readonly CardDefinition[] = [...OGS_CARDS, ...OGN_CARDS].sort((a, b) =>
   a.id.localeCompare(b.id),
 )
 

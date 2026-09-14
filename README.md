@@ -14,18 +14,18 @@ Early build. See [the plan](docs/plan.md) for scope and milestones,
 [the architecture](docs/architecture.md) for how the pieces fit together, and
 [the rules spec](docs/rules-spec.md) for what the engine must implement.
 
-| Milestone | What                                                   | State                    |
-| --------- | ------------------------------------------------------ | ------------------------ |
-| M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done                  |
-| M1        | Core Rules transcribed into a machine-readable corpus  | ✅ done                  |
-| M2        | Card definition schema and effect-step interpreter     | ✅ done                  |
-| M3        | Rules engine — zones, turns, chain, showdowns, scoring | ✅ done                  |
-| M4        | All 24 Origins: Proving Grounds cards                  | entered, 5 fully working |
-| M5        | Server — registration, login, guests, admin CLI        | ✅ done                  |
-| M6        | Match server — room codes, matchmaking, reconnect      | rooms ✅                 |
-| M7        | Client shell — Electron, deck builder                  | first cut                |
-| M8        | Game board UI                                          |                          |
-| M9        | Deploy, package, playtest                              |                          |
+| Milestone | What                                                   | State                                            |
+| --------- | ------------------------------------------------------ | ------------------------------------------------ |
+| M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done                                          |
+| M1        | Core Rules transcribed into a machine-readable corpus  | ✅ done                                          |
+| M2        | Card definition schema and effect-step interpreter     | ✅ done                                          |
+| M3        | Rules engine — zones, turns, chain, showdowns, scoring | ✅ done                                          |
+| M4        | All 24 Origins: Proving Grounds cards                  | entered + 45 OGN; 4 boxed decks playable as data |
+| M5        | Server — registration, login, guests, admin CLI        | ✅ done                                          |
+| M6        | Match server — room codes, matchmaking, reconnect      | rooms ✅                                         |
+| M7        | Client shell — Electron, deck builder                  | first cut                                        |
+| M8        | Game board UI                                          |                                                  |
+| M9        | Deploy, package, playtest                              |                                                  |
 
 ## Layout
 

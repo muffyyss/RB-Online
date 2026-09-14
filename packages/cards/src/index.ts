@@ -20,5 +20,9 @@ export {
 } from './registry.js'
 
 export { OGS_CARDS } from './sets/ogs/index.js'
+export { OGN_CARDS } from './sets/ogn/index.js'
 
 export { cardOracle, factsOf } from './oracle.js'
+
+export { PROVING_GROUNDS_DECKS } from './decks/proving-grounds.js'
+export type { StarterDeck } from './decks/proving-grounds.js'

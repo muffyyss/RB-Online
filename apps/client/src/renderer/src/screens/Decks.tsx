@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 
-import { cardOracle } from '@rb/cards'
+import { PROVING_GROUNDS_DECKS, cardOracle } from '@rb/cards'
 import { validateDeck } from '@rb/engine'
 import type { DeckPreset } from '@rb/engine'
 
 import {
+  addStarterDecks,
   exportDeckCode,
   importDeckCode,
   removePreset,
@@ -20,7 +21,13 @@ function PresetRow({ preset }: { preset: DeckPreset }) {
   const go = useStore((s) => s.go)
   const notify = useStore((s) => s.notify)
   const [confirming, setConfirming] = useState(false)
-  const legal = useMemo(() => validateDeck(preset.deck, oracle).valid, [preset.deck])
+  // A deck legal for a Duel is simply "Legal". The boxed decks bring one
+  // battlefield, so they pass only the starter format, and say so.
+  const legality = useMemo(() => {
+    if (validateDeck(preset.deck, oracle, 'duel').valid) return 'duel'
+    if (validateDeck(preset.deck, oracle, 'starter').valid) return 'starter'
+    return null
+  }, [preset.deck])
 
   async function copyCode() {
     try {
@@ -40,7 +47,16 @@ function PresetRow({ preset }: { preset: DeckPreset }) {
           {preset.deck.runes.length} runes · {preset.deck.battlefields.length} battlefields
         </div>
       </div>
-      <span className={legal ? 'badge ok' : 'badge warn'}>{legal ? 'Legal' : 'Not legal'}</span>
+      <span
+        className={legality ? 'badge ok' : 'badge warn'}
+        title={
+          legality === 'starter'
+            ? 'Legal with the one battlefield it ships with. A Duel needs three.'
+            : undefined
+        }
+      >
+        {legality === 'duel' ? 'Legal' : legality === 'starter' ? 'Starter legal' : 'Not legal'}
+      </span>
       <div className="actions">
         <button onClick={() => go({ name: 'builder', presetId: preset.id })}>Edit</button>
         <button onClick={() => void copyCode()}>Copy code</button>
@@ -115,6 +131,27 @@ function ImportDeck() {
   )
 }
 
+function AddStarterDecks() {
+  const file = useStore((s) => s.presets)
+  const save = useStore((s) => s.savePresets)
+  const select = useStore((s) => s.selectPreset)
+  const selected = useStore((s) => s.selectedPresetId)
+  const notify = useStore((s) => s.notify)
+  const missing = PROVING_GROUNDS_DECKS.filter((d) => !file.presets.some((p) => p.id === d.id))
+  if (missing.length === 0) return null
+
+  async function add() {
+    const result = addStarterDecks(file, PROVING_GROUNDS_DECKS, Date.now())
+    await save(result.file)
+    if (!selected) select(result.file.presets[0]?.id ?? null)
+    notify(
+      `Added ${String(result.added)} Proving Grounds ${result.added === 1 ? 'deck' : 'decks'}.`,
+    )
+  }
+
+  return <button onClick={() => void add()}>Add Proving Grounds decks</button>
+}
+
 export function Decks() {
   const presets = useStore((s) => s.presets.presets)
   const go = useStore((s) => s.go)
@@ -129,6 +166,7 @@ export function Decks() {
           </p>
         </div>
         <div className="actions">
+          <AddStarterDecks />
           <ImportDeck />
           <button className="primary" onClick={() => go({ name: 'builder', presetId: null })}>
             New deck
@@ -137,7 +175,10 @@ export function Decks() {
       </div>
       {presets.length === 0 ? (
         <div className="card empty">
-          <p className="muted">No decks yet. Build one, or import a code a friend sent you.</p>
+          <p className="muted">
+            No decks yet. Add the four Proving Grounds decks to play straight away, build one, or
+            import a code a friend sent you.
+          </p>
         </div>
       ) : (
         <ul className="preset-list">

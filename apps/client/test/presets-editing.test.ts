@@ -5,6 +5,7 @@ import type { DeckPreset, PresetFile } from '@rb/engine'
 
 import {
   PRESET_NAME_MAX,
+  addStarterDecks,
   addCard,
   cleanName,
   countOf,
@@ -94,5 +95,28 @@ describe('adding and removing cards', () => {
     deck = removeCard(deck, 'main', 'X')
     expect(countOf(deck.main, 'X')).toBe(1)
     expect(removeCard(deck, 'battlefields', 'nope')).toBe(deck)
+  })
+})
+
+describe('adding the starter decks', () => {
+  const starters = [
+    { id: 'ogs-annie', name: 'Annie � Proving Grounds', deck: { ...emptyDeck(), legend: 'A' } },
+    { id: 'ogs-lux', name: 'Lux � Proving Grounds', deck: { ...emptyDeck(), legend: 'L' } },
+  ]
+
+  it('adds each one once', () => {
+    const first = addStarterDecks(file(preset('mine')), starters, 7)
+    expect(first.added).toBe(2)
+    expect(first.file.presets.map((p) => p.id)).toEqual(['mine', 'ogs-annie', 'ogs-lux'])
+
+    const again = addStarterDecks(first.file, starters, 8)
+    expect(again.added).toBe(0)
+    expect(again.file.presets).toHaveLength(3)
+  })
+
+  it('leaves an edited copy alone', () => {
+    const edited = { ...preset('ogs-annie', 'My Annie'), updatedAt: 99 }
+    const result = addStarterDecks(file(edited), starters, 7)
+    expect(result.file.presets.find((p) => p.id === 'ogs-annie')?.name).toBe('My Annie')
   })
 })
