@@ -25,3 +25,22 @@ export {
   usernameSchema,
 } from './account.js'
 export type { RegisterErrorField, RegisterFieldError, RegisterRequest } from './account.js'
+
+export {
+  DECK_CODE_MAX,
+  ROOM_CODE_ALPHABET,
+  ROOM_CODE_LENGTH,
+  clientMessageSchema,
+  normaliseRoomCode,
+} from './room.js'
+export type {
+  ClientMessage,
+  ErrorCode,
+  PlayerIdentity,
+  PlayerKind,
+  RoomClosedReason,
+  RoomStatus,
+  RoomView,
+  SeatView,
+  ServerMessage,
+} from './room.js'

@@ -515,23 +515,49 @@ to grind for and no reason to gate cards behind acquisition.
 
 ### WebSocket gateway
 
-One socket per client, authenticated by access token on connect.
+One socket per client at `GET /ws`. **Built (lobby part):** `packages/protocol/src/room.ts`,
+`apps/server/src/rooms/`.
+
+The first frame must be `hello {protocol, accessToken}` — the token travels in a
+frame, not the URL, so it never lands in proxy logs. No hello within 10 seconds,
+a bad token, or any other message first closes the socket (close code 4001);
+a different protocol version closes with 4000 ("update the game").
 
 ```
-C→S: ROOM_CREATE {deckId} | ROOM_JOIN {code, deckId} | ROOM_LEAVE
-     QUEUE_JOIN {deckId}  | QUEUE_LEAVE
-     MATCH_ACTION {matchId, seq, action}
-     MATCH_RESYNC {matchId, lastSeenSeq}
-     CONCEDE {matchId}    | PING
-S→C: ROOM_STATE {code, players}      | QUEUE_STATE {position}
-     MATCH_FOUND {matchId, opponent, seat}
-     MATCH_STATE {view, seq}         # full redacted snapshot
-     MATCH_EVENTS {events[], seq}    # incremental, redacted
-     MATCH_ERROR {code, message}     | MATCH_END {winner, reason}
-     TIMER {clocks}                  | PONG
+C→S: hello {protocol, accessToken} | ping
+     room.create {deck} | room.join {code, deck} | room.leave
+     room.deck {deck}   | room.ready {ready}
+S→C: welcome {you} | pong
+     room.state {room: {code, status, seats[], yourSeat}}
+     room.closed {reason: left | host-left}
+     error {code, message}
+
+Later (M6): match.action / match.resync / concede, match.state / match.events / match.end
 ```
 
-Every message zod-validated in **both** directions.
+`deck` is the deck code of the chosen local preset. Presets never leave the
+machine except as that code, and **the other seat only ever sees `hasDeck`**,
+never the code itself (decklists are private, 129.3).
+
+Client frames are zod-validated; server frames are plain shared types.
+
+Lobby rules as built:
+
+- Registered players create rooms; **guests can only join** (`guests-cannot-host`).
+- Room codes are 6 characters from an alphabet without I/O/0/1, typed in any
+  case, with spaces or hyphens ignored.
+- A player is in at most one room. Wrong codes are limited to 10 per minute per
+  player, so a script cannot sweep codes into strangers' rooms.
+- Changing deck un-readies you. Both ready → `starting`, which locks the room
+  except for leaving, and hands both deck codes to the match layer.
+- Host leaves → room closes for everyone. Friend leaves → host keeps the room.
+  A dropped socket counts as leaving.
+- Connecting again as the same player moves the seat to the new connection and
+  closes the old one (4002), so a reconnect does not lose a place.
+- More than 40 frames in 10 seconds closes the connection (4008).
+- Rooms live in memory only; a restart costs a re-join, not data.
+- At room time the deck code is only checked to _decode_. Full legality needs the
+  card data adapted to the engine oracle, and runs when the match is built.
 
 ### Starting a game — rooms first, queue second
 

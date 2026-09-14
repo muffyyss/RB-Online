@@ -7,16 +7,25 @@
  */
 
 import rateLimit from '@fastify/rate-limit'
+import websocket from '@fastify/websocket'
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
 
 import type { Database } from './auth/register.js'
 import type { Config } from './config.js'
+import { checkDeckCode } from './rooms/deck.js'
+import { gateway } from './rooms/gateway.js'
+import type { GatewayOptions } from './rooms/gateway.js'
+import { RoomManager } from './rooms/manager.js'
 import { authRoutes } from './routes/auth.js'
 
 export interface AppOptions {
   readonly db: Database
   readonly config: Config
+  /** Supplied by tests that want to inspect rooms; built fresh otherwise. */
+  readonly rooms?: RoomManager
+  /** Gateway timing overrides, for tests. */
+  readonly gateway?: Pick<GatewayOptions, 'helloTimeoutMs' | 'messageLimit'>
 }
 
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
@@ -42,6 +51,13 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   app.get('/health', () => ({ status: 'ok' }))
 
   await app.register(authRoutes, { db, config })
+
+  await app.register(websocket, {
+    // Lobby messages are tiny; a large frame is not a lobby message.
+    options: { maxPayload: 16 * 1024 },
+  })
+  const rooms = options.rooms ?? new RoomManager({ checkDeck: checkDeckCode })
+  await app.register(gateway, { rooms, jwtSecret: config.JWT_SECRET, ...options.gateway })
 
   app.setErrorHandler((error: unknown, request, reply) => {
     const fastifyError = error as { statusCode?: number; code?: string; message?: string }
