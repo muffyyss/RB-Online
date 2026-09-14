@@ -36,6 +36,30 @@ const oracle = oracleFrom({
     cost: { energy: 1, power: [] },
     abilities: [{ id: 'cs-effect', kind: 'spell', steps: [{ op: 'draw', amount: 1 }] }],
   },
+  // A spell whose effect is recorded but cannot run yet.
+  unfinished: {
+    type: 'spell',
+    name: 'Unfinished',
+    domains: ['fury'],
+    tags: [],
+    keywords: [],
+    cost: { energy: 2, power: [] },
+    abilities: [{ id: 'unfinished-effect', kind: 'spell', steps: [], notImplemented: 'later' }],
+  },
+  // A unit with an unrunnable trigger: the body is still real.
+  sleeper: {
+    type: 'unit',
+    name: 'Sleeper',
+    domains: ['fury'],
+    tags: [],
+    might: 2,
+    keywords: [],
+    cost: { energy: 1, power: [] },
+    abilities: [
+      { id: 'sleeper-trigger', kind: 'triggered', steps: [], notImplemented: 'later' },
+      { id: 'sleeper-tap', kind: 'activated', exhaust: true, steps: [], notImplemented: 'later' },
+    ],
+  },
   soldier: {
     type: 'unit',
     name: 'Soldier',
@@ -312,5 +336,63 @@ describe('legalActions', () => {
       source: 'lux-1',
       abilityId: 'lux-ramp',
     })
+  })
+})
+
+describe('cards whose effect is not implemented yet', () => {
+  const scene = () => {
+    const base = makeState(
+      [
+        { id: 'unfinished-1', cardId: 'unfinished', owner: 0, zone: 'hand' },
+        { id: 'sleeper-1', cardId: 'sleeper', owner: 0, zone: 'hand' },
+        { id: 'sleeper-2', cardId: 'sleeper', owner: 0, zone: 'base' },
+      ],
+      { phase: 'main', step: 'main', turnPlayer: 0, priority: 0 },
+    )
+    return {
+      ...base,
+      players: {
+        ...base.players,
+        0: { ...base.players[0], runePool: { energy: 5, power: {}, universal: 0, restricted: [] } },
+      },
+    }
+  }
+
+  it('refuses the spell before anything is paid', () => {
+    const before = scene()
+    const result = applyAction(
+      before,
+      { type: 'play-card', player: 0, card: 'unfinished-1' },
+      oracle,
+    )
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error.code).toBe('not-implemented')
+    expect(before.players[0].runePool.energy).toBe(5)
+  })
+
+  it('does not offer it as a legal action', () => {
+    const offered = legalActions(scene(), 0, oracle)
+    expect(offered).not.toContainEqual({ type: 'play-card', player: 0, card: 'unfinished-1' })
+  })
+
+  it('still lets a unit with a missing trigger be played as a body', () => {
+    const result = applyAction(scene(), { type: 'play-card', player: 0, card: 'sleeper-1' }, oracle)
+    expect(result.ok).toBe(true)
+  })
+
+  it('refuses, and does not offer, an activated ability that cannot run', () => {
+    const state = scene()
+    const result = applyAction(
+      state,
+      { type: 'activate-ability', player: 0, source: 'sleeper-2', abilityId: 'sleeper-tap' },
+      oracle,
+    )
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('not-implemented')
+    expect(state.objects['sleeper-2']?.exhausted).toBe(false)
+    expect(legalActions(state, 0, oracle)).not.toContainEqual(
+      expect.objectContaining({ type: 'activate-ability', abilityId: 'sleeper-tap' }),
+    )
   })
 })

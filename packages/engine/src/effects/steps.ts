@@ -112,7 +112,16 @@ export const selectorSchema = z.object({
    * "here" to mean its own Battlefield (Silver Rule, 050). Units are always at a
    * Base or a Battlefield (146.1).
    */
-  at: z.enum(['here', 'same-location', 'base', 'any-battlefield', 'anywhere']).optional(),
+  at: z
+    .union([
+      z.enum(['here', 'same-location', 'base', 'any-battlefield', 'anywhere']),
+      /**
+       * A Battlefield bound by an earlier `choose`, for "…at a battlefield" text
+       * that picks the Battlefield first and then acts on everything there.
+       */
+      bindingSchema,
+    ])
+    .optional(),
   /** Restrict to objects carrying this tag (143.1). Tags have no innate meaning (133.8.a). */
   tag: z.string().optional(),
   /** Restrict by Might, e.g. `{ max: 3 }` for "a unit with Might 3 or less". */

@@ -243,6 +243,7 @@ function runStep(
     controller: execution.controller,
     source: execution.source,
     oracle,
+    bindings: execution.bindings,
   }
   const self = execution.controller
   const other = opponentOf(self)

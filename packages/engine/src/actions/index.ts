@@ -9,7 +9,7 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
-import type { CardOracle } from '../effects/oracle.js'
+import type { CardFacts, CardOracle } from '../effects/oracle.js'
 import { canPay, pay } from '../model/cost.js'
 import { addToChain, advanceChain, passOnChain, resumeResolution } from '../flow/chain.js'
 import { timingRefusal } from '../flow/timing.js'
@@ -75,7 +75,23 @@ export interface RuleViolation {
     | 'illegal-move'
     | 'not-setup'
     | 'too-many-cards'
+    /** The card's effect is recorded but the engine cannot run it yet. */
+    | 'not-implemented'
   readonly message: string
+}
+
+/**
+ * Why a card cannot be played or an ability activated because its effect is not
+ * implemented, or null if it can.
+ *
+ * Checked before any cost is paid. Refusing at resolution instead — the older
+ * behaviour — let a player spend six Energy on a spell that then did nothing.
+ * Units and gear are not refused for a missing passive or trigger: the body is
+ * real and playable, and the gap is shown against the card.
+ */
+function unimplementedEffect(facts: CardFacts): string | null {
+  if (facts.type !== 'spell') return null
+  return facts.abilities.find((a) => a.kind === 'spell')?.notImplemented ?? null
 }
 
 export type ActionResult =
@@ -175,6 +191,10 @@ export function applyAction(
       const facts = oracle.facts(object.cardId)
       if (!facts) return reject('unknown-card', `no card data for ${object.cardId}`)
 
+      const missing = unimplementedEffect(facts)
+      if (missing)
+        return reject('not-implemented', `${object.cardId} cannot be played yet: ${missing}`)
+
       // 358.4 - the card must have permission to be played at this timing.
       const refusal = timingRefusal(state, action.player, facts.keywords)
       if (refusal) return reject('bad-timing', refusal)
@@ -229,6 +249,12 @@ export function applyAction(
       const ability = facts?.abilities.find((a) => a.id === action.abilityId)
       if (!facts || !ability || ability.kind !== 'activated') {
         return reject('unknown-ability', `no activated ability ${action.abilityId}`)
+      }
+      if (ability.notImplemented) {
+        return reject(
+          'not-implemented',
+          `${ability.id} cannot be used yet: ${ability.notImplemented}`,
+        )
       }
 
       const refusal = timingRefusal(state, action.player, ability.keywords ?? [])
@@ -412,6 +438,7 @@ export function legalActions(
     if (!object) continue
     const facts = oracle.facts(object.cardId)
     if (!facts) continue
+    if (unimplementedEffect(facts)) continue
     if (timingRefusal(state, player, facts.keywords)) continue
     const cost = facts.cost ?? { energy: 0, power: [] }
     if (!canPay(cost, facts.domains, state.players[player].runePool, { cardType: facts.type })) {
@@ -428,6 +455,7 @@ export function legalActions(
     if (!facts) continue
     for (const ability of facts.abilities) {
       if (ability.kind !== 'activated') continue
+      if (ability.notImplemented) continue
       if (timingRefusal(state, player, ability.keywords ?? [])) continue
       if (ability.exhaust && object.exhausted) continue
       if (ability.cost && !canPay(ability.cost, facts.domains, state.players[player].runePool)) {

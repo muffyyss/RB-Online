@@ -17,6 +17,8 @@ export interface SelectorContext {
   readonly controller: PlayerId
   readonly source: ObjectId
   readonly oracle: CardOracle
+  /** Bindings made earlier in the ability, for selectors scoped to a chosen object. */
+  readonly bindings?: Readonly<Record<string, readonly ObjectId[]>>
 }
 
 function sameLocation(a: Location | undefined, b: Location | undefined): boolean {
@@ -72,6 +74,16 @@ function matchesLocation(
       return object.location?.kind === 'base'
     case 'any-battlefield':
       return object.location?.kind === 'battlefield'
+    default: {
+      // A bound Battlefield. Unbound (the choice was declined or had no
+      // candidates) matches nothing, so the dependent step does nothing.
+      const chosen = ctx.bindings?.[at]?.[0]
+      return (
+        chosen !== undefined &&
+        object.location?.kind === 'battlefield' &&
+        object.location.id === chosen
+      )
+    }
   }
 }
 

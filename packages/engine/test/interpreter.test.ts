@@ -27,6 +27,14 @@ const oracle = oracleFrom({
   },
   spell: { type: 'spell', name: 'Zap', domains: ['fury'], tags: [], keywords: [], abilities: [] },
   rune: { type: 'rune', name: 'Rune', domains: ['fury'], tags: [], keywords: [], abilities: [] },
+  field: {
+    type: 'battlefield',
+    name: 'Field',
+    domains: [],
+    tags: [],
+    keywords: [],
+    abilities: [],
+  },
 })
 
 /** Put a unit on a battlefield so location-aware selectors have something to find. */
@@ -305,5 +313,83 @@ describe('interpreter — determinism', () => {
     const second = run(build(), steps)
     expect(JSON.stringify(first.state)).toBe(JSON.stringify(second.state))
     expect(first.events).toEqual(second.events)
+  })
+})
+
+describe('interpreter � acting on everything at a chosen battlefield', () => {
+  // "Deal 3 to all enemy units at a battlefield": the player picks the
+  // Battlefield, then every enemy unit there is hit and nothing elsewhere is.
+  const at = (id: ObjectId, cardId: string, owner: 0 | 1, battlefield: string) => ({
+    id,
+    cardId,
+    owner,
+    zone: 'battlefield' as const,
+    battlefield,
+  })
+
+  function build(): GameState {
+    const specs = [
+      { id: 'bf-0', cardId: 'field', owner: 0 as const, zone: 'battlefield' as const },
+      { id: 'bf-1', cardId: 'field', owner: 1 as const, zone: 'battlefield' as const },
+      at('enemy-here-a', 'unit-5', 1, 'bf-0'),
+      at('enemy-here-b', 'unit-2', 1, 'bf-0'),
+      at('friend-here', 'unit-5', 0, 'bf-0'),
+      at('enemy-elsewhere', 'unit-5', 1, 'bf-1'),
+      { id: 'src', owner: 0 as const, zone: 'battlefield' as const, battlefield: 'bf-0' },
+    ]
+    const state = makeState(specs)
+    const objects = { ...state.objects }
+    for (const spec of specs) {
+      const object = objects[spec.id]
+      if (object && 'battlefield' in spec) {
+        objects[spec.id] = { ...object, location: { kind: 'battlefield', id: spec.battlefield } }
+      }
+    }
+    return { ...state, objects }
+  }
+
+  const steps: EffectStep[] = [
+    { op: 'choose', as: '$field', from: { kind: 'battlefield' } },
+    {
+      op: 'for-each',
+      of: { kind: 'unit', controller: 'opponent', at: '$field' },
+      as: '$unit',
+      steps: [{ op: 'deal', amount: 3, target: '$unit' }],
+    },
+  ]
+
+  it('offers the battlefields, then hits only enemy units at the one chosen', () => {
+    const first = run(build(), steps)
+    expect(first.status).toBe('awaiting-choice')
+    expect(first.state.pendingChoice?.candidates).toEqual(['bf-0', 'bf-1'])
+    if (first.status !== 'awaiting-choice') return
+
+    const done = resolveChoice(first.state, first.execution, '$field', ['bf-0'], oracle)
+    expect(done.status).toBe('done')
+    expect(done.state.objects['enemy-here-a']?.damage).toBe(3)
+    expect(done.state.objects['enemy-here-b']?.zone).toBe('trash') // 2 Might, dies
+    expect(done.state.objects['friend-here']?.damage).toBe(0)
+    expect(done.state.objects['enemy-elsewhere']?.damage).toBe(0)
+  })
+
+  it('does nothing when the chosen battlefield has no enemy units', () => {
+    const first = run(build(), steps)
+    if (first.status !== 'awaiting-choice') throw new Error('expected a choice')
+    const emptied = {
+      ...first.state,
+      objects: Object.fromEntries(
+        Object.entries(first.state.objects).filter(([id]) => id !== 'enemy-elsewhere'),
+      ),
+    }
+    const done = resolveChoice(emptied, first.execution, '$field', ['bf-1'], oracle)
+    expect(done.status).toBe('done')
+    expect(done.events.filter((e) => e.type === 'damage-dealt')).toHaveLength(0)
+  })
+
+  it('matches nothing if the battlefield binding is empty', () => {
+    const result = run(build(), [
+      { op: 'deal', amount: 3, target: { kind: 'unit', at: '$unbound' } },
+    ])
+    expect(result.events.filter((e) => e.type === 'damage-dealt')).toHaveLength(0)
   })
 })
