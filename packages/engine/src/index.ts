@@ -147,6 +147,7 @@ export type { DeckList } from './flow/setup.js'
 
 export {
   DUEL_BATTLEFIELDS,
+  FORMAT_BATTLEFIELDS,
   MAX_COPIES,
   MAX_SIGNATURE,
   MIN_MAIN_DECK,
@@ -154,7 +155,7 @@ export {
   describeDeck,
   validateDeck,
 } from './deck/validate.js'
-export type { DeckError, DeckErrorCode, DeckValidation } from './deck/validate.js'
+export type { DeckError, DeckErrorCode, DeckFormat, DeckValidation } from './deck/validate.js'
 
 export {
   DECK_CODE_VERSION,

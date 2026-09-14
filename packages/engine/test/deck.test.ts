@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { oracleFrom } from '../src/effects/oracle.js'
 import type { CardFacts } from '../src/effects/oracle.js'
 import { MIN_MAIN_DECK, validateDeck } from '../src/deck/validate.js'
-import type { DeckErrorCode } from '../src/deck/validate.js'
+import type { DeckErrorCode, DeckFormat } from '../src/deck/validate.js'
 import type { DeckList } from '../src/flow/setup.js'
 
 const oracle = oracleFrom({
@@ -175,8 +175,8 @@ function legalDeck(overrides: Partial<DeckList> = {}): DeckList {
   }
 }
 
-const codes = (deck: DeckList): DeckErrorCode[] =>
-  validateDeck(deck, oracle).errors.map((e) => e.code)
+const codes = (deck: DeckList, format: DeckFormat = 'duel'): DeckErrorCode[] =>
+  validateDeck(deck, oracle, format).errors.map((e) => e.code)
 
 describe('the Chosen Champion counts toward the Main Deck (103.2, 103.2.b.1)', () => {
   it('counts champion plus main cards', () => {
@@ -284,6 +284,17 @@ describe('rune deck (103.3)', () => {
 describe('battlefields (103.4, 485.4.a)', () => {
   it('requires three for a duel', () => {
     expect(codes(legalDeck({ battlefields: ['BF1', 'BF2'] }))).toContain('battlefield-count')
+  })
+
+  it('accepts exactly one in the starter format, as the boxed decks ship', () => {
+    const boxed = legalDeck({ battlefields: ['BF1'] })
+    expect(validateDeck(boxed, oracle, 'starter').valid).toBe(true)
+    expect(validateDeck(boxed, oracle, 'duel').valid).toBe(false)
+    // Every other rule still applies: starter is not a looser deck, only fewer battlefields.
+    expect(codes(legalDeck({ battlefields: [] }), 'starter')).toContain('battlefield-count')
+    expect(codes(legalDeck({ battlefields: ['BF1'], runes: ['RUNE'] }), 'starter')).toContain(
+      'rune-deck-wrong-size',
+    )
   })
 
   it('rejects two of the same name (103.4.c)', () => {

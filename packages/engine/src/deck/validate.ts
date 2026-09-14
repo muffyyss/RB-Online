@@ -33,6 +33,23 @@ export const MAX_SIGNATURE = 3
 /** Battlefields a Duel deck brings; one is chosen at random at setup (485.4.a). */
 export const DUEL_BATTLEFIELDS = 3
 
+/**
+ * Which deck-building rules to check against.
+ *
+ * - `duel` — the sanctioned 1v1 Mode of Play (485): three Battlefields.
+ * - `starter` — a house format for the boxed Proving Grounds decks, which ship
+ *   with one Battlefield each. It is not a sanctioned Mode of Play. A Duel only
+ *   ever puts one Battlefield per player into play (485.5), so a deck that
+ *   brings exactly one plays identically; every other rule is unchanged.
+ */
+export type DeckFormat = 'duel' | 'starter'
+
+/** Battlefields each deck must bring, by format. */
+export const FORMAT_BATTLEFIELDS: Readonly<Record<DeckFormat, number>> = {
+  duel: DUEL_BATTLEFIELDS,
+  starter: 1,
+}
+
 export type DeckErrorCode =
   | 'unknown-card'
   | 'legend-not-a-legend'
@@ -77,7 +94,11 @@ export interface DeckValidation {
  * Main Deck for both the size minimum and the copy limit (103.2, 103.2.b.1).
  * Counting it twice or not at all are both easy mistakes.
  */
-export function validateDeck(deck: DeckList, oracle: CardOracle): DeckValidation {
+export function validateDeck(
+  deck: DeckList,
+  oracle: CardOracle,
+  format: DeckFormat = 'duel',
+): DeckValidation {
   const errors: DeckError[] = []
   const fail = (code: DeckErrorCode, message: string, rule: string, card?: CardId) => {
     errors.push(card === undefined ? { code, message, rule } : { code, message, rule, card })
@@ -235,10 +256,11 @@ export function validateDeck(deck: DeckList, oracle: CardOracle): DeckValidation
   }
 
   // --- Battlefields (103.4, 485.4.a) ---
-  if (deck.battlefields.length !== DUEL_BATTLEFIELDS) {
+  const required = FORMAT_BATTLEFIELDS[format]
+  if (deck.battlefields.length !== required) {
     fail(
       'battlefield-count',
-      `${String(deck.battlefields.length)} battlefields, a duel deck needs ${String(DUEL_BATTLEFIELDS)}`,
+      `${String(deck.battlefields.length)} battlefields, a ${format} deck needs ${String(required)}`,
       '485.4.a',
     )
   }
