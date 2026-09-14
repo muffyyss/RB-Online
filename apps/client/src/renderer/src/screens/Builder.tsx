@@ -62,6 +62,16 @@ function CardTile(props: {
         {card.domains.join(', ') || 'colourless'}
       </div>
       {card.text && <p className="tile-text small">{card.text}</p>}
+      {card.abilities?.some((a) => a.notImplemented) && (
+        <p
+          className="tile-gap small"
+          title={card.abilities
+            .flatMap((a) => (a.notImplemented ? [a.notImplemented] : []))
+            .join('\n')}
+        >
+          {card.type === 'spell' ? 'Not playable yet' : 'Ability not working yet'}
+        </p>
+      )}
       <div className="tile-actions">
         {section === 'legend' ? (
           <button onClick={() => onChange({ ...deck, legend: count ? '' : card.id })}>

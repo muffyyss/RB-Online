@@ -24,6 +24,9 @@ export default defineCard({
       id: 'dark-child-ready-runes',
       on: 'end-of-turn',
       steps: [{ op: 'ready', target: { kind: 'rune', controller: 'self', count: 2 } }],
+      // The steps are exact, but nothing fires triggered abilities yet. Marked
+      // so the card is not mistaken for one that works.
+      notImplemented: 'triggered abilities are not dispatched by the engine yet',
     },
   ],
   text: 'At the end of your turn, ready 2 runes.',

@@ -8,15 +8,15 @@ application so you and a small community of friends can play together. The repos
 
 **Requirements locked in:**
 
-|                  |                                                                                                                                                        |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Stack**        | "Newest and popular" → **TypeScript everywhere** (rationale below)                                                                                     |
-| **Server**       | **Windows Server** — native services, no Docker                                                                                                        |
-| **V1 scope**     | **1v1 only**, plus deck builder / collection                                                                                                           |
-| **Cards**        | **Origins: Proving Grounds (OGS)** starter set only — 41 cards, 4 decks. Other sets added later, once V1 is proven                                     |
-| **Accounts**     | Registration and login built from scratch, in-client, invite-gated. **Guests may join rooms without registering; only registered players create them** |
-| **Audience**     | Friends + small community. **Non-commercial, no monetization**                                                                                         |
-| **Card effects** | Must be **easy to change later** (e.g. tuning a skill from 3 → 2) without touching engine code                                                         |
+|                  |                                                                                                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Stack**        | "Newest and popular" → **TypeScript everywhere** (rationale below)                                                                                                                         |
+| **Server**       | **Windows Server** — native services, no Docker                                                                                                                                            |
+| **V1 scope**     | **1v1 only**, plus deck builder / collection                                                                                                                                               |
+| **Cards**        | **Origins: Proving Grounds (OGS)** starter set only — 24 set-exclusive cards, 4 decks (their Runes and Battlefields come from the OGN base set). Other sets added later, once V1 is proven |
+| **Accounts**     | Registration and login built from scratch, in-client, invite-gated. **Guests may join rooms without registering; only registered players create them**                                     |
+| **Audience**     | Friends + small community. **Non-commercial, no monetization**                                                                                                                             |
+| **Card effects** | Must be **easy to change later** (e.g. tuning a skill from 3 → 2) without touching engine code                                                                                             |
 
 **Why TypeScript everywhere:** the most important property of a TCG is that the
 _rules engine runs identically on server and client_. The server must be authoritative
@@ -338,7 +338,7 @@ change things later.
 
 ### V1 card scope
 
-**Origins: Proving Grounds (OGS)** — 41 cards, 4 preconstructed decks
+**Origins: Proving Grounds (OGS)** — 24 set-exclusive cards, 4 preconstructed decks. _Corrected: an earlier draft said 41. The set has no Runes, Battlefields or Gear of its own; the decks take those from the Origins base set (OGN), so a legal deck needs some OGN cards too._
 (**Annie, Master Yi, Lux, Garen**). Realistically ~1 week of authoring, not months.
 
 Sets are separate folders under `src/sets/`, registered in a set index. Adding Origins
@@ -643,7 +643,7 @@ the server snapshot. Optimistic rendering, authoritative truth.
 
 ### Deck builder
 
-- Card grid with filters (domain / type / cost / tag) and search. With 41 cards this is
+- Card grid with filters (domain / type / cost / tag) and search. With a few dozen cards this is
   simple — no virtualization needed until later sets land.
 - **Start from the 4 preconstructed OGS decks** (Annie, Master Yi, Lux, Garen) — players
   can play immediately and customize from there.
@@ -724,7 +724,7 @@ Native services — Windows Server + Docker is more pain than it's worth here:
 | **M1** | Rules spec        | Install poppler; render + read all 138 PDF pages; transcribe → `docs/rules-spec.md` (**gates M3**)                                       | 3–5 days  |
 | **M2** | Card DSL          | `CardDefinition` schema, effect-step interpreter, ~8 representative cards, `card-lint`                                                   | 1–2 weeks |
 | **M3** | Engine core       | Zones, flow machine, chain/priority, costs, showdowns, scoring, continuous effects. **Gate: bots play a full game to 8 points in tests** | 3–5 weeks |
-| **M4** | Card content      | All **41 OGS cards** + 4 preconstructed decks, each with tests                                                                           | ~1 week   |
+| **M4** | Card content      | All **24 OGS cards** (+ the OGN runes/battlefields the decks need) + 4 preconstructed decks, each with tests                             | ~1 week   |
 | **M5** | Server foundation | Postgres schema, migrations, **registration + invite codes + login/sessions**, admin CLI, REST API, deck CRUD + legality                 | 1–2 weeks |
 | **M6** | Match server      | WS gateway, room codes, queue, MatchRoom, redaction, timers, reconnect, replays                                                          | 1–2 weeks |
 | **M7** | Client shell      | Electron app, **register + login screens**, lobby + room codes, collection, deck builder                                                 | 2–3 weeks |

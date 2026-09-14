@@ -42,7 +42,13 @@ export const costSchema = z.object({
   power: z.array(powerSymbolSchema),
 })
 
-const stepsSchema = z.array(effectStepSchema).min(1, 'an ability needs at least one step')
+/**
+ * An ability's steps. May be empty only when the ability is marked
+ * `notImplemented` (checked on the card): writing *some* of the steps for text
+ * the DSL cannot express would record a wrong version of the card as if it
+ * were a start.
+ */
+const stepsSchema = z.array(effectStepSchema)
 
 /**
  * When a triggered ability fires (382).
@@ -51,6 +57,13 @@ const stepsSchema = z.array(effectStepSchema).min(1, 'an ability needs at least 
  * it grows as the OGS set demands rather than being guessed at up front.
  */
 export const TRIGGERS = [
+  /**
+   * "When you play me" (419). Not the same as entering the board: a unit put
+   * onto the board by another effect was not Played and must not fire this.
+   */
+  'played',
+  /** "When you play a spell" — any spell its controller plays (419). */
+  'spell-played',
   'enters-play',
   'leaves-play',
   'killed',
@@ -208,6 +221,17 @@ export const cardDefinitionSchema = z
     }
     if (card.type !== 'spell' && spellEffects.length > 0) {
       fail('only a spell may have a `spell` ability (133.4.b.1)', 'abilities')
+    }
+
+    // An ability with no steps does nothing, which is only acceptable when it
+    // says so: otherwise it is a card that silently fails to work.
+    for (const ability of card.abilities ?? []) {
+      if ('steps' in ability && ability.steps.length === 0 && !ability.notImplemented) {
+        fail(
+          `ability "${ability.id}" has no steps; write them, or mark it notImplemented`,
+          'abilities',
+        )
+      }
     }
 
     // Ability ids must be unique within a card so tests and logs can name them.
