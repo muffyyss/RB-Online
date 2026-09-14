@@ -29,6 +29,24 @@ const configSchema = z.object({
   REGISTER_RATE_WINDOW: z.string().default('15 minutes'),
 
   /**
+   * Secret that signs access tokens.
+   *
+   * Anyone holding it can mint a token for any account, admins included, so it
+   * lives only in the server's `.env`. At least 32 characters; generate one with
+   * `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`.
+   */
+  JWT_SECRET: z
+    .string()
+    .min(32, 'JWT_SECRET must be at least 32 characters')
+    // The .env.example placeholder is long enough to pass the length check, so
+    // it is refused by name: a server signing with a published secret is open.
+    .refine((value) => !value.includes('CHANGE_ME'), 'JWT_SECRET is still the example value'),
+
+  /** Login attempts allowed per IP per window. Slows password guessing. */
+  LOGIN_RATE_LIMIT: z.coerce.number().int().positive().default(10),
+  LOGIN_RATE_WINDOW: z.string().default('15 minutes'),
+
+  /**
    * Tell a registrant that a username or email is already taken.
    *
    * True suits a private, invite-gated server, where a clear message beats

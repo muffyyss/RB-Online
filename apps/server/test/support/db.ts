@@ -19,6 +19,7 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { dirname, join } from 'node:path'
 
+import { registerUser } from '../../src/auth/register.js'
 import type { Database } from '../../src/auth/register.js'
 import { generateInviteCode, hashInviteCode } from '../../src/auth/invite.js'
 import { inviteCodes } from '../../src/db/schema.js'
@@ -54,7 +55,14 @@ export async function createTestDb(): Promise<TestDb> {
  * replay the whole migration each time. Migrating once per file and truncating
  * between tests gives the same isolation for a fraction of the cost.
  */
-const TABLES = ['audit_log', 'invite_redemptions', 'user_credentials', 'invite_codes', 'users']
+const TABLES = [
+  'audit_log',
+  'refresh_tokens',
+  'invite_redemptions',
+  'user_credentials',
+  'invite_codes',
+  'users',
+]
 
 /** Empty every table, leaving the migrated schema in place. */
 export async function resetDb(db: Database): Promise<void> {
@@ -84,6 +92,29 @@ export async function seedInvite(
     .returning({ id: inviteCodes.id })
   if (!row) throw new Error('failed to seed invite code')
   return { code, id: row.id }
+}
+
+/** A signing secret for tests only. Long enough to pass config validation. */
+export const TEST_JWT_SECRET = 'test-secret-that-is-long-enough-to-pass-validation'
+
+/** Register an account through the real path and return its credentials. */
+export async function seedAccount(
+  db: Database,
+  username = 'muffy',
+): Promise<{ id: string; username: string; password: string }> {
+  const invite = await seedInvite(db)
+  const password = 'correct1horse'
+  const result = await registerUser(
+    db,
+    validRegistration({
+      username,
+      email: `${username.toLowerCase()}@example.com`,
+      password,
+      inviteCode: invite.code,
+    }),
+  )
+  if (!result.ok) throw new Error(`could not seed ${username}`)
+  return { id: result.user.id, username, password }
 }
 
 /** A registration payload that passes every rule, for overriding one field. */
