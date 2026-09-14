@@ -20,3 +20,5 @@ export {
 } from './registry.js'
 
 export { OGS_CARDS } from './sets/ogs/index.js'
+
+export { cardOracle, factsOf } from './oracle.js'
