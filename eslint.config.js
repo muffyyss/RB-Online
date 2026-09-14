@@ -51,6 +51,8 @@ export default tseslint.config(
   {
     ignores: [
       '**/dist/**',
+      '**/out/**',
+      '**/.tsbuild/**',
       '**/node_modules/**',
       '**/coverage/**',
       'docs/reference/**',
@@ -74,6 +76,17 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       eqeqeq: ['error', 'always'],
+    },
+  },
+  {
+    // The client is two TypeScript projects: Node for main/preload, DOM + JSX
+    // for the renderer. Lint each against its own.
+    files: ['apps/client/**/*.ts', 'apps/client/**/*.tsx'],
+    languageOptions: {
+      parserOptions: {
+        project: ['./apps/client/tsconfig.node.json', './apps/client/tsconfig.web.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
   },
   {

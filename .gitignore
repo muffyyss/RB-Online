@@ -32,3 +32,6 @@ __pycache__/
 # since they are someone else's content and would bury the project.
 # Restore with: npx skills experimental_install
 .claude/skills/
+
+# TypeScript declaration output from the client's typecheck-only projects
+.tsbuild/

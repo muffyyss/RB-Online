@@ -9,5 +9,6 @@
     "checkJs": false,
     "types": ["node"]
   },
-  "include": ["packages/**/*.ts", "tools/**/*.ts", "apps/**/*.ts", "*.ts", "*.js"]
+  "include": ["packages/**/*.ts", "tools/**/*.ts", "apps/**/*.ts", "*.ts", "*.js"],
+  "exclude": ["apps/client/**", "**/node_modules/**", "**/dist/**"]
 }

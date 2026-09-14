@@ -14,18 +14,18 @@ Early build. See [the plan](docs/plan.md) for scope and milestones,
 [the architecture](docs/architecture.md) for how the pieces fit together, and
 [the rules spec](docs/rules-spec.md) for what the engine must implement.
 
-| Milestone | What                                                   | State   |
-| --------- | ------------------------------------------------------ | ------- |
-| M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done |
-| M1        | Core Rules transcribed into a machine-readable corpus  | ✅ done |
-| M2        | Card definition schema and effect-step interpreter     | ✅ done |
-| M3        | Rules engine — zones, turns, chain, showdowns, scoring | ✅ done |
-| M4        | All 41 Origins: Proving Grounds cards                  | next    |
-| M5        | Server — registration, login, decks                    |         |
-| M6        | Match server — room codes, matchmaking, reconnect      |         |
-| M7        | Client shell — Electron, deck builder                  |         |
-| M8        | Game board UI                                          |         |
-| M9        | Deploy, package, playtest                              |         |
+| Milestone | What                                                   | State     |
+| --------- | ------------------------------------------------------ | --------- |
+| M0        | Monorepo, TypeScript, lint, tests, CI                  | ✅ done   |
+| M1        | Core Rules transcribed into a machine-readable corpus  | ✅ done   |
+| M2        | Card definition schema and effect-step interpreter     | ✅ done   |
+| M3        | Rules engine — zones, turns, chain, showdowns, scoring | ✅ done   |
+| M4        | All 41 Origins: Proving Grounds cards                  | 3 of 41   |
+| M5        | Server — registration, login, guests, admin CLI        | ✅ done   |
+| M6        | Match server — room codes, matchmaking, reconnect      | rooms ✅  |
+| M7        | Client shell — Electron, deck builder                  | first cut |
+| M8        | Game board UI                                          |           |
+| M9        | Deploy, package, playtest                              |           |
 
 ## Layout
 
@@ -34,6 +34,9 @@ packages/
   engine/      Pure rules engine. Deterministic, no I/O. Runs on server AND client.
   cards/       Hand-authored card definitions (Origins: Proving Grounds).
   protocol/    Wire types shared by server and client.
+apps/
+  server/      Fastify + Postgres: accounts, guests, sessions, room lobby over WebSocket.
+  client/      Electron + React desktop app. Main process holds every credential.
 tools/
   card-lint/   Validates card definitions; fails if a card has no test.
   sim/         Headless bot-vs-bot simulator.
@@ -42,8 +45,6 @@ scripts/
 docs/
   reference/   Riot's rulebook + derived corpus (local only, never committed).
 ```
-
-`apps/server` and `apps/client` arrive in M5 and M7.
 
 ### Why one shared engine
 
@@ -73,6 +74,38 @@ npm run typecheck
 npm run lint
 npm run test
 npm run format
+```
+
+### Trying the client locally
+
+No Postgres needed: the in-memory server runs the real app on an embedded
+database and prints invite codes to register with. Nothing is saved.
+
+```bash
+npx tsc -b                      # builds the workspace packages the client bundles
+npx install-electron            # one-time: downloads the Electron binary
+npm run dev:memory -w @rb/server
+npm run dev -w @rb/client       # in a second terminal
+```
+
+To test a room with two players on one machine, build the client
+(`npm run build -w @rb/client`) and start two copies with separate profiles —
+each keeps its own login, guest and decks:
+
+```bash
+node_modules/electron/dist/electron.exe apps/client --profile=host
+node_modules/electron/dist/electron.exe apps/client --profile=friend
+```
+
+### Running the real server
+
+Copy `apps/server/.env.example` to `apps/server/.env` and fill it in
+(`DATABASE_URL`, and a `JWT_SECRET` of at least 32 characters). Then:
+
+```bash
+npm run db:migrate
+npm run admin -- invite create --uses 5 --label friends
+npm run server
 ```
 
 ### Working on the rules corpus

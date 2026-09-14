@@ -6,3 +6,5 @@ docs/reference/
 
 # Vendored third-party skills
 .claude/
+out/
+.tsbuild/
