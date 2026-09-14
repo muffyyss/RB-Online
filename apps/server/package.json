@@ -8,11 +8,12 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean",
-    "dev": "node --experimental-strip-types --watch src/server.ts",
-    "start": "node dist/server.js",
-    "cli": "node --experimental-strip-types src/cli.ts",
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "dev:memory": "tsx scripts/dev-memory.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "cli": "tsx --env-file-if-exists=.env src/cli.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --experimental-strip-types src/db/migrate.ts"
+    "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts"
   },
   "dependencies": {
     "@fastify/rate-limit": "^10.3.0",
@@ -30,6 +31,7 @@
     "@electric-sql/pglite": "^0.3.10",
     "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.4",
+    "tsx": "^4.23.13",
     "ws": "^8.21.3"
   }
 }
