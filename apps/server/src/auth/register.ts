@@ -21,6 +21,8 @@ import { checkRegistration, normaliseEmail, normaliseUsername } from '@rb/protoc
 import type { RegisterFieldError } from '@rb/protocol'
 
 import { auditLog, inviteCodes, inviteRedemptions, userCredentials, users } from '../db/schema.js'
+import { violatesUnique } from '../db/errors.js'
+import { adoptGuest } from './guest.js'
 import { hashInviteCode } from './invite.js'
 import { fakeVerify, hashPassword } from './password.js'
 
@@ -97,6 +99,7 @@ export async function registerUser(
     email: string
     password: string
     inviteCode: string
+    guestSecret?: string
   }
   const usernameNormalised = normaliseUsername(request.username)
   const emailNormalised = normaliseEmail(request.email)
@@ -186,6 +189,11 @@ export async function registerUser(
 
       await tx.insert(inviteRedemptions).values({ inviteCodeId: invite.id, userId: created.id })
 
+      // A guest who registers keeps their identity's history.
+      if (request.guestSecret !== undefined) {
+        await adoptGuest(tx, request.guestSecret, created.id)
+      }
+
       await tx.insert(auditLog).values({
         userId: created.id,
         event: 'register.success',
@@ -204,10 +212,10 @@ export async function registerUser(
     // A unique-index violation means someone registered the same name between
     // our check and our insert. The index is the real guarantee; the earlier
     // check only exists to give a nicer message.
-    if (message.includes('users_username_normalised_key')) {
+    if (violatesUnique(error, 'users_username_normalised_key')) {
       return failure('username', 'That username is already taken.')
     }
-    if (message.includes('users_email_normalised_key')) {
+    if (violatesUnique(error, 'users_email_normalised_key')) {
       return reveal
         ? failure('email', 'That email address already has an account.')
         : failure('form', 'Registration could not be completed.')

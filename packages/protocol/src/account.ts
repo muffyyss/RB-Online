@@ -57,7 +57,32 @@ const RESERVED = new Set([
 ])
 
 export function isReservedUsername(username: string): boolean {
-  return RESERVED.has(username.trim().toLowerCase())
+  const folded = username.trim().toLowerCase()
+  // Anything starting "guest" is reserved too, or a registered player could
+  // call themselves Guest000042 and be mistaken for someone else's guest.
+  return RESERVED.has(folded) || folded.startsWith('guest')
+}
+
+// ---------------------------------------------------------------------------
+// Guests
+// ---------------------------------------------------------------------------
+
+/**
+ * A guest's credential: a random string the client generates once and keeps.
+ *
+ * base64url of at least 32 random bytes. The server stores only its hash, so
+ * the secret is the guest's password in everything but name — it just never
+ * needs typing.
+ */
+export const GUEST_SECRET_PATTERN = /^[A-Za-z0-9_-]{43,128}$/
+
+export const guestRequestSchema = z.object({
+  guestSecret: z.string().regex(GUEST_SECRET_PATTERN),
+})
+
+/** `Guest000001`. Numbers past a million simply grow a digit. */
+export function guestName(number: number): string {
+  return `Guest${String(number).padStart(6, '0')}`
 }
 
 /** The form used for uniqueness comparison (150.1-style folding, lowercased). */
@@ -158,6 +183,11 @@ export const registerRequestSchema = z.object({
   inviteCode: z.string().trim().min(1, 'An invite code is required.'),
   /** Must be explicitly ticked, not defaulted. */
   acceptedTerms: z.literal(true, { message: 'You must accept the terms to register.' }),
+  /**
+   * The secret of the guest identity this player has been using, if any, so
+   * the new account adopts it rather than starting fresh.
+   */
+  guestSecret: z.string().regex(GUEST_SECRET_PATTERN).optional(),
 })
 
 export type RegisterRequest = z.infer<typeof registerRequestSchema>

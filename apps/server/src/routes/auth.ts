@@ -9,6 +9,7 @@
 import type { FastifyInstance, FastifyPluginCallback, FastifyRequest } from 'fastify'
 
 import { requireUser } from '../auth/guard.js'
+import { guestLogin } from '../auth/guest.js'
 import { login, logout, refreshSession } from '../auth/login.js'
 import { registerUser } from '../auth/register.js'
 import type { Database } from '../auth/register.js'
@@ -129,6 +130,32 @@ export const authRoutes: FastifyPluginCallback<AuthRouteOptions> = (
     await logout(db, refreshTokenFrom(request.body))
     return reply.status(204).send()
   })
+
+  app.post(
+    '/api/auth/guest',
+    {
+      config: {
+        rateLimit: {
+          max: config.GUEST_RATE_LIMIT,
+          timeWindow: config.GUEST_RATE_WINDOW,
+          keyGenerator: clientIp,
+        },
+      },
+    },
+    async (request, reply) => {
+      const result = await guestLogin(db, request.body, sessionContext(request))
+      if (!result.ok) {
+        if (result.reason === 'adopted') {
+          // The client should forget the guest and show the login screen.
+          return reply.status(409).send({
+            errors: [{ field: 'form', message: 'This guest is now an account. Please log in.' }],
+          })
+        }
+        return reply.status(400).send({ errors: [{ field: 'form', message: 'Invalid guest.' }] })
+      }
+      return reply.status(result.session.created ? 201 : 200).send(result.session)
+    },
+  )
 
   app.get('/api/me', async (request, reply) => {
     const claims = requireUser(request, reply, config.JWT_SECRET)

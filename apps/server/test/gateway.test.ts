@@ -33,6 +33,8 @@ const config: Config = {
   JWT_SECRET: TEST_JWT_SECRET,
   LOGIN_RATE_LIMIT: 100,
   LOGIN_RATE_WINDOW: '1 minute',
+  GUEST_RATE_LIMIT: 100,
+  GUEST_RATE_WINDOW: '1 minute',
 }
 
 // A deck code that decodes; legality is not the room's concern.

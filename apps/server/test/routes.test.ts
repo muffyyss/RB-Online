@@ -35,6 +35,8 @@ const testConfig = (overrides: Partial<Config> = {}): Config => ({
   JWT_SECRET: TEST_JWT_SECRET,
   LOGIN_RATE_LIMIT: 100,
   LOGIN_RATE_WINDOW: '1 minute',
+  GUEST_RATE_LIMIT: 100,
+  GUEST_RATE_WINDOW: '1 minute',
   ...overrides,
 })
 
@@ -284,6 +286,45 @@ describe('login, refresh, logout and /api/me', () => {
       )
     for (let i = 0; i < 3; i += 1) expect((await attempt()).statusCode).toBe(401)
     expect((await attempt()).statusCode).toBe(429)
+  })
+})
+
+describe('POST /api/auth/guest', () => {
+  const secret = 'a'.repeat(20) + 'B'.repeat(23)
+
+  it('answers 201 for a new guest and 200 when they come back, usable on /api/me', async () => {
+    await start()
+    const first = await postJson('/api/auth/guest', { guestSecret: secret })
+    expect(first.statusCode).toBe(201)
+    const again = await postJson('/api/auth/guest', { guestSecret: secret })
+    expect(again.statusCode).toBe(200)
+
+    const session = JSON.parse(again.body) as { accessToken: string }
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/me',
+      headers: { authorization: `Bearer ${session.accessToken}` },
+    })
+    expect(me.json()).toMatchObject({ user: { username: 'Guest000001', role: 'guest' } })
+  })
+
+  it('never echoes the secret', async () => {
+    await start()
+    const response = await postJson('/api/auth/guest', { guestSecret: secret })
+    expect(response.body).not.toContain(secret)
+  })
+
+  it('answers 400 for a bad secret', async () => {
+    await start()
+    expect((await postJson('/api/auth/guest', { guestSecret: 'x' })).statusCode).toBe(400)
+  })
+
+  it('is rate limited per address', async () => {
+    await start({ GUEST_RATE_LIMIT: 2, GUEST_RATE_WINDOW: '1 minute' })
+    const from = { 'x-forwarded-for': '203.0.113.30' }
+    await postJson('/api/auth/guest', { guestSecret: secret }, from)
+    await postJson('/api/auth/guest', { guestSecret: secret }, from)
+    expect((await postJson('/api/auth/guest', { guestSecret: secret }, from)).statusCode).toBe(429)
   })
 })
 

@@ -57,6 +57,7 @@ export async function createTestDb(): Promise<TestDb> {
  */
 const TABLES = [
   'audit_log',
+  'guests',
   'refresh_tokens',
   'invite_redemptions',
   'user_credentials',
@@ -67,7 +68,7 @@ const TABLES = [
 /** Empty every table, leaving the migrated schema in place. */
 export async function resetDb(db: Database): Promise<void> {
   // CASCADE handles the foreign keys, so the order above is belt-and-braces.
-  await db.execute(sql.raw(`TRUNCATE ${TABLES.join(', ')} CASCADE`))
+  await db.execute(sql.raw(`TRUNCATE ${TABLES.join(', ')} RESTART IDENTITY CASCADE`))
 }
 
 export interface SeededInvite {

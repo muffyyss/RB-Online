@@ -151,6 +151,22 @@ describe('duplicate accounts (case-insensitive)', () => {
   })
 })
 
+describe('simultaneous registrations for the same name', () => {
+  it('lets one win and tells the other the name is taken, rather than failing with a 500', async () => {
+    // Both pass the "is it taken?" check before either inserts, so it is the
+    // unique index that catches the second one — and its error arrives wrapped.
+    const [a, b] = await Promise.all([
+      register({ username: 'Twin', email: 'one@example.com' }),
+      register({ username: 'twin', email: 'two@example.com' }),
+    ])
+    const results = [a.result, b.result]
+    expect(results.filter((r) => r.ok)).toHaveLength(1)
+    const loser = results.find((r) => !r.ok)
+    expect(loser && fieldsOf(loser)).toEqual(['username'])
+    expect(await db.select().from(users)).toHaveLength(1)
+  })
+})
+
 describe('invite codes', () => {
   it('refuses an unknown code', async () => {
     const result = await registerUser(db, validRegistration({ inviteCode: 'NOSUCHCODE' }))

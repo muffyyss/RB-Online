@@ -456,10 +456,25 @@ them, because the server links the guest id to the new user id rather than
 starting fresh. The registration flow therefore has to accept an optional guest
 id to adopt, which is worth building in from the start rather than retrofitting.
 
-What this means for the schema, when it is built: guests need a row (a number
-has to be unique and allocated), but not credentials, an email, or an invite
-redemption. Most likely a `guests` table keyed by a client-generated id, with
-`users.adopted_guest_id` recording an upgrade.
+**As built** (`apps/server/src/auth/guest.ts`, migration `0002_guests`), with two
+deliberate changes from the sketch above:
+
+- **The client keeps a secret, not just an id.** It generates 32 random bytes
+  once and sends them to `POST /api/auth/guest`; the server stores only the
+  SHA-256 and returns a 15-minute access token with `role: guest`. A bare
+  client-chosen id would let anyone who learned it play as that guest. There is
+  no refresh token — the secret is the long-lived credential, so the client just
+  asks again.
+- **The number is allocated on the first guest request, not the first room
+  join.** The access token has to carry a name for the room to show, and
+  allocating lazily would mean tokens without one. The spam brake is a per-IP
+  rate limit instead (`GUEST_RATE_LIMIT`), and a guest still cannot do anything
+  without a room code from a registered player.
+
+Registration takes an optional `guestSecret`; the guest row is kept and marked
+`adopted_by_user_id`, after which that secret answers 409 and the client should
+show the login screen. Usernames starting with "guest" are reserved, so nobody
+can register as `Guest000042`.
 
 ### Login & sessions
 

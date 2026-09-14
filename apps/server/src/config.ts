@@ -47,6 +47,14 @@ const configSchema = z.object({
   LOGIN_RATE_WINDOW: z.string().default('15 minutes'),
 
   /**
+   * Guest sessions per IP per window. A returning guest asks for a new access
+   * token every fifteen minutes, so this covers several guests on one network
+   * (a LAN party) while stopping a script from minting names by the thousand.
+   */
+  GUEST_RATE_LIMIT: z.coerce.number().int().positive().default(30),
+  GUEST_RATE_WINDOW: z.string().default('15 minutes'),
+
+  /**
    * Tell a registrant that a username or email is already taken.
    *
    * True suits a private, invite-gated server, where a clear message beats

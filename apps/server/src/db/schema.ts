@@ -128,3 +128,4 @@ export const auditLog = pgTable(
 // Session tables live in their own file for readability, but drizzle-kit reads
 // a single schema entry point, so they are re-exported here.
 export { refreshTokens } from './sessions.js'
+export { guests } from './guests.js'
