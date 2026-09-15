@@ -51,6 +51,20 @@ function toTarget(object: GameObject, oracle: CardOracle): DamageTarget {
   return { id: object.id, might: mightOf(object, oracle) ?? 0, damage: object.damage }
 }
 
+/**
+ * The order a side's units take damage in.
+ *
+ * Units with Tank must be assigned lethal damage before any unit without it
+ * (815.1.b); among Tanks, and among the rest, order is the assigning player's
+ * choice (815.1.c.2, 465.2.c.7) and is kept deterministic here.
+ */
+function assignmentOrder(units: readonly GameObject[], oracle: CardOracle): DamageTarget[] {
+  const tank = (unit: GameObject) => oracle.facts(unit.cardId)?.keywords.includes('tank') ?? false
+  return [...units.filter(tank), ...units.filter((unit) => !tank(unit))].map((unit) =>
+    toTarget(unit, oracle),
+  )
+}
+
 function battlefieldById(state: GameState, id: ObjectId): BattlefieldState | undefined {
   return state.battlefields.find((bf) => bf.id === id)
 }
@@ -120,8 +134,8 @@ export function resolveCombatDamage(
   // 465.1 - damage happens only if both sides still have units here.
   if (attackers.length === 0 || defenders.length === 0) return state
 
-  const attackTargets = defenders.map((u) => toTarget(u, oracle))
-  const defendTargets = attackers.map((u) => toTarget(u, oracle))
+  const attackTargets = assignmentOrder(defenders, oracle)
+  const defendTargets = assignmentOrder(attackers, oracle)
 
   const ontoDefenders = assignDamage(sumMight(defendTargets), attackTargets)
   const ontoAttackers = assignDamage(sumMight(attackTargets), defendTargets)

@@ -3,9 +3,8 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-010 — transcribed from the printed card.
  *
- * Two things are missing: triggered abilities are not dispatched yet, and there
- * is no step for returning a card from the trash to hand. Recorded with no
- * steps rather than a partial version.
+ * There is no step for returning a card from the trash to hand, so it is
+ * recorded with no steps rather than a partial version.
  */
 export default defineCard({
   id: 'OGS-010',
@@ -24,8 +23,7 @@ export default defineCard({
       id: 'annie-stubborn-return-spell',
       on: 'played',
       steps: [],
-      notImplemented:
-        'triggers are not dispatched yet, and there is no step to return a spell from trash to hand',
+      notImplemented: 'there is no step to return a spell from trash to hand',
     },
   ],
   text: 'When you play me, return a spell from your trash to your hand.',

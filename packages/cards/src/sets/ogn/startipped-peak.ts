@@ -15,7 +15,7 @@ export default defineCard({
       id: 'startipped-peak-channel',
       on: 'hold',
       steps: [],
-      notImplemented: 'needs trigger dispatch and channelling a rune exhausted',
+      notImplemented: 'channelling a rune exhausted is not implemented',
     },
   ],
   text: 'When you hold here, you may channel 1 rune exhausted.',

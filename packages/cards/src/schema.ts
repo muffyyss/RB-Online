@@ -19,8 +19,10 @@ import {
   effectStepSchema,
   isImplemented,
   isPermanentType,
+  takesValue,
   triggerConditionSchema,
 } from '@rb/engine'
+import type { Keyword } from '@rb/engine'
 import { z } from 'zod'
 
 /** Sets currently authored: Origins: Proving Grounds, and the Origins cards its decks use. */
@@ -36,6 +38,24 @@ const powerSymbolSchema = z.union([
   z.object({ kind: z.literal('any') }), // [A] - 135.2.e.5
   z.object({ kind: z.literal('self') }), // [C] - 135.2.e.6
 ])
+
+/**
+ * A keyword as printed: `'tank'` for [Tank], `['assault', 2]` for [Assault 2].
+ *
+ * A valued keyword printed without a number is written plain and has the
+ * value 1 (807.1.b.3, 814.1.b.3). Only valued keywords may carry a number.
+ */
+export const keywordEntrySchema = z.union([
+  z.enum(KEYWORDS),
+  z.tuple([z.enum(KEYWORDS), z.number().int().positive()]),
+])
+
+export type KeywordEntry = z.infer<typeof keywordEntrySchema>
+
+/** The keyword an entry names, with or without its value. */
+export function keywordName(entry: KeywordEntry): Keyword {
+  return typeof entry === 'string' ? entry : entry[0]
+}
 
 /** A printed cost: the Energy numeral plus the Power column (131.2, 131.3). */
 export const costSchema = z.object({
@@ -170,7 +190,7 @@ export const cardDefinitionSchema = z
     /** Modifies the Might of the card this is attached to (137). May be +0. */
     mightBonus: z.number().int().optional(),
 
-    keywords: z.array(z.enum(KEYWORDS)).optional(),
+    keywords: z.array(keywordEntrySchema).optional(),
     abilities: z.array(abilitySchema).optional(),
 
     /** Printed rules text, kept verbatim so a card can be checked against the real one. */
@@ -213,7 +233,15 @@ export const cardDefinitionSchema = z
     }
 
     // A keyword the engine does not implement would silently do nothing.
-    for (const keyword of card.keywords ?? []) {
+    const names = (card.keywords ?? []).map(keywordName)
+    for (const entry of card.keywords ?? []) {
+      const keyword = keywordName(entry)
+      if (typeof entry !== 'string' && !takesValue(keyword)) {
+        fail(`keyword "${keyword}" takes no value`, 'keywords')
+      }
+      if (names.indexOf(keyword) !== names.lastIndexOf(keyword)) {
+        fail(`keyword "${keyword}" is listed twice; write its total value once`, 'keywords')
+      }
       if (!isImplemented(keyword)) {
         fail(
           `keyword "${keyword}" is not implemented yet — add it to IMPLEMENTED_KEYWORDS with a test first`,

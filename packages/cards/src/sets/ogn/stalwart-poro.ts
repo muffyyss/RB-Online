@@ -12,14 +12,7 @@ export default defineCard({
   domains: ['calm'],
   cost: { energy: 2, power: [] },
   might: 2,
-  abilities: [
-    {
-      kind: 'passive',
-      id: 'stalwart-poro-shield',
-      text: '[Shield]',
-      notImplemented: 'the Shield keyword (814) is not implemented yet',
-    },
-  ],
+  keywords: ['shield'],
   text: "[Shield] (+1 [Might] while I'm a defender.)",
   flavor: 'It suits him.',
 })

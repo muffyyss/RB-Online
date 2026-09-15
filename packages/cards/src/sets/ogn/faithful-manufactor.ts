@@ -18,8 +18,7 @@ export default defineCard({
       id: 'faithful-manufactor-recruit',
       on: 'played',
       steps: [],
-      notImplemented:
-        'triggered abilities are not dispatched by the engine yet, and token creation has no step yet',
+      notImplemented: 'token creation (439) has no step yet',
     },
   ],
   text: 'When you play me, play a 1 [Might] Recruit unit token here.',

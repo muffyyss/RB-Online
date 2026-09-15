@@ -12,6 +12,16 @@ describe('the card oracle', () => {
     expect(oracle.facts('XXX-999')).toBeUndefined()
   })
 
+  it('splits printed keywords into names and values ("[Assault 2]", "[Tank]")', () => {
+    const oracle = cardOracle()
+    expect(oracle.facts('OGS-007')).toMatchObject({
+      keywords: ['assault', 'shield'],
+      keywordValues: { assault: 2, shield: 2 },
+    })
+    expect(oracle.facts('OGN-087')?.keywords).toEqual(['tank'])
+    expect(oracle.facts('OGN-087')).not.toHaveProperty('keywordValues')
+  })
+
   it('carries what deck validation needs, using the full name', () => {
     const lux = ALL_CARDS.find((card) => card.id === 'OGS-014')
     if (!lux) throw new Error('Lux missing')

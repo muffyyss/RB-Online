@@ -58,7 +58,13 @@ export type TimingKeyword = (typeof TIMING_KEYWORDS)[number]
  * working implementation is worse than one that is absent, because card-lint
  * will wave the card through.
  */
-export const IMPLEMENTED_KEYWORDS: readonly Keyword[] = ['action', 'reaction']
+export const IMPLEMENTED_KEYWORDS: readonly Keyword[] = [
+  'action',
+  'reaction',
+  'assault',
+  'shield',
+  'tank',
+]
 
 export function isKeyword(value: unknown): value is Keyword {
   return typeof value === 'string' && (KEYWORDS as readonly string[]).includes(value)
@@ -72,9 +78,10 @@ export function isImplemented(keyword: Keyword): boolean {
  * Some keywords take a numeric value, written as `[Keyword] N`.
  *
  * Which ones do is set by each keyword's glossary entry; this list is filled in
- * as they are implemented rather than guessed at up front.
+ * as they are implemented rather than guessed at up front. A valued keyword
+ * printed without a number has the value 1 (807.1.b.3, 814.1.b.3).
  */
-export const VALUED_KEYWORDS: readonly Keyword[] = []
+export const VALUED_KEYWORDS: readonly Keyword[] = ['assault', 'shield']
 
 export function takesValue(keyword: Keyword): boolean {
   return VALUED_KEYWORDS.includes(keyword)

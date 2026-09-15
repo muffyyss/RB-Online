@@ -9,8 +9,8 @@
 
 import { useEffect, useState } from 'react'
 
-import { cardFullName, getCard } from '@rb/cards'
-import { currentMight } from '@rb/engine'
+import { cardFullName, cardOracle, getCard } from '@rb/cards'
+import { mightOf } from '@rb/engine'
 import type { GameAction, GameObject, GameView, Location, ObjectId, PlayerId } from '@rb/engine'
 
 import {
@@ -39,9 +39,17 @@ function nameOf(view: GameView, id: ObjectId): string {
   return card ? cardFullName(card) : object.cardId
 }
 
-function mightOf(object: GameObject): number | undefined {
-  const printed = getCard(object.cardId)?.might
-  return printed === undefined ? undefined : currentMight(object, printed)
+const oracle = cardOracle()
+
+/** Printed keywords, e.g. "Assault 2 · Shield 2". */
+function keywordsOf(object: GameObject): string {
+  return (getCard(object.cardId)?.keywords ?? [])
+    .map((entry) => {
+      const [name, value] = typeof entry === 'string' ? [entry, undefined] : entry
+      const label = name.charAt(0).toUpperCase() + name.slice(1)
+      return value === undefined ? label : `${label} ${String(value)}`
+    })
+    .join(' · ')
 }
 
 /** "+3 this turn", so a player can see why a unit is bigger than printed. */
@@ -65,18 +73,21 @@ function Piece(props: { session: MatchSession; view: GameView; id: ObjectId }) {
   const { session, view, id } = props
   const object = view.objects[id]
   if (!object) return null
-  const might = mightOf(object)
+  const might = mightOf(object, oracle)
+  const keywords = keywordsOf(object)
   const abilities = abilitiesOf(session.legal, id)
   const moves = movesOf(session.legal, id)
 
   return (
     <div className={`piece ${object.exhausted ? 'exhausted' : ''}`}>
       <div className="piece-name">{nameOf(view, id)}</div>
+      {keywords && <div className="piece-keywords small muted">{keywords}</div>}
       <div className="piece-stats small">
         {might !== undefined && <span>{might} might</span>}
         {object.mightThisTurn !== undefined && object.mightThisTurn !== 0 && (
           <span className="muted">({signed(object.mightThisTurn)} this turn)</span>
         )}
+        {object.combatRole !== undefined && <span className="muted">{object.combatRole}</span>}
         {object.damage > 0 && <span className="damage">{object.damage} damage</span>}
         {object.exhausted && <span className="muted">exhausted</span>}
       </div>

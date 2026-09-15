@@ -36,6 +36,25 @@ const oracle = oracleFrom({
     keywords: [],
     abilities: [],
   },
+  tank: {
+    type: 'unit',
+    name: 'Wall',
+    domains: ['fury'],
+    tags: [],
+    might: 2,
+    keywords: ['tank'],
+    abilities: [],
+  },
+  raider: {
+    type: 'unit',
+    name: 'Raider',
+    domains: ['fury'],
+    tags: [],
+    might: 1,
+    keywords: ['assault', 'shield'],
+    keywordValues: { assault: 2 },
+    abilities: [],
+  },
   m5: {
     type: 'unit',
     name: 'Titan',
@@ -52,7 +71,7 @@ const BF: Location = { kind: 'battlefield', id: 'bf-0' }
 interface UnitSpec {
   readonly id: string
   readonly owner: PlayerId
-  readonly card: 'm1' | 'm2' | 'm3' | 'm5'
+  readonly card: 'm1' | 'm2' | 'm3' | 'm5' | 'tank' | 'raider'
 }
 
 /** Two sides already facing each other at bf-0, contested by `contestedBy`. */
@@ -181,6 +200,39 @@ describe('the Combat Damage Step (465)', () => {
     // a is 4 Might: it survives b's 3 and deals 4, which kills b.
     expect(after.objects.a?.zone).toBe('battlefield')
     expect(after.objects.b?.zone).toBe('trash')
+  })
+
+  it('assigns damage to a Tank before any unit without it (815.1.b)', () => {
+    const { state } = fight(
+      facingOff([
+        { id: 'a', owner: 0, card: 'm3' },
+        { id: 'big', owner: 1, card: 'm5' },
+        { id: 'wall', owner: 1, card: 'tank' },
+      ]),
+    )
+    // 3 damage: lethal 2 on the Tank first, the last 1 on the Titan.
+    expect(state.objects.wall?.zone).toBe('trash')
+    expect(state.objects.big?.zone).toBe('battlefield')
+    expect(state.objects.big?.damage).toBe(0) // healed as combat ends
+  })
+
+  it('adds Assault while attacking and Shield while defending (807.1.c, 814.1.c)', () => {
+    // Raider: 1 Might, Assault 2, Shield 1.
+    const attacking = fight(
+      facingOff([
+        { id: 'raider', owner: 0, card: 'raider' },
+        { id: 'foe', owner: 1, card: 'm3' },
+      ]),
+    ).events
+    expect(attacking).toContainEqual({ type: 'damage-dealt', target: 'foe', amount: 3 })
+
+    const defending = fight(
+      facingOff([
+        { id: 'foe', owner: 0, card: 'm3' },
+        { id: 'raider', owner: 1, card: 'raider' },
+      ]),
+    ).events
+    expect(defending).toContainEqual({ type: 'damage-dealt', target: 'foe', amount: 2 })
   })
 
   it('lets a bigger unit survive a smaller one', () => {

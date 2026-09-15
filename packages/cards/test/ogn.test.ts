@@ -7,6 +7,7 @@ import { getCard } from '../src/registry.js'
 import { OGN_CARDS } from '../src/sets/ogn/index.js'
 import { makeState } from '../../engine/test/support/state.js'
 import { act, base, field, mainPhase, settle } from './support/game.js'
+import { attackInto } from './support/combat.js'
 import { board, resolveSpell, testOracle } from './support/play.js'
 
 /**
@@ -322,5 +323,46 @@ describe('OGN Might given this turn', () => {
       'ravenbloom-student-empowered',
     ])
     expect(settle(played).objects.student?.mightThisTurn).toBe(1)
+  })
+})
+
+describe('OGN keywords in combat', () => {
+  it('OGN-087 Lecturing Yordle (Tank) takes damage before a bigger ally', () => {
+    // Daring Poro attacks as a 3 (2 Might, Assault). Without Tank, all 3 would
+    // land on the Mech listed first and nothing would die.
+    const { state } = attackInto(
+      mainPhase([
+        { id: 'poro', cardId: 'OGN-210', owner: 0, at: base(0) },
+        { id: 'mech', cardId: 'OGN-088', owner: 1, at: field('bf-0') },
+        { id: 'yordle', cardId: 'OGN-087', owner: 1, at: field('bf-0') },
+      ]),
+      ['poro'],
+      'bf-0',
+    )
+    expect(state.objects.yordle?.zone).toBe('trash')
+    expect(state.objects.mech?.zone).toBe('battlefield')
+  })
+
+  it.each([
+    ['OGN-210', 'Daring Poro', ['assault']],
+    ['OGN-215', 'Petty Officer', ['assault']],
+    ['OGN-052', 'Stalwart Poro', ['shield']],
+    ['OGN-087', 'Lecturing Yordle', ['tank']],
+    ['OGN-191', 'Maddened Marauder', ['tank']],
+    ['OGN-137', 'Stormclaw Ursine', ['tank']],
+  ])('%s %s has its printed keyword', (id, _name, keywords) => {
+    expect(getCard(id)?.keywords).toEqual(keywords)
+  })
+
+  it('OGN-052 Stalwart Poro defends as a 3 (Shield)', () => {
+    const { events } = attackInto(
+      mainPhase([
+        { id: 'attacker', cardId: 'OGN-088', owner: 0, at: base(0) },
+        { id: 'poro', cardId: 'OGN-052', owner: 1, at: field('bf-0') },
+      ]),
+      ['attacker'],
+      'bf-0',
+    )
+    expect(events).toContainEqual({ type: 'damage-dealt', target: 'attacker', amount: 3 })
   })
 })

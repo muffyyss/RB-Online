@@ -18,8 +18,7 @@ export default defineCard({
       id: 'traveling-merchant-trade',
       on: 'moves',
       steps: [],
-      notImplemented:
-        'triggered abilities are not dispatched by the engine yet, and discard is not implemented',
+      notImplemented: 'discard is not implemented yet',
     },
   ],
   text: 'When I move, discard 1, then draw 1.',

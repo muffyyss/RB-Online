@@ -18,8 +18,7 @@ export default defineCard({
       id: 'noxian-drummer-recruit',
       on: 'moves',
       steps: [],
-      notImplemented:
-        'triggered abilities are not dispatched by the engine yet, and token creation has no step yet',
+      notImplemented: 'token creation (439) has no step yet',
     },
   ],
   text: 'When I move to a battlefield, play a 1 [Might] Recruit unit token here. (It is also at the battlefield.)',

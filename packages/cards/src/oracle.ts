@@ -7,11 +7,11 @@
  * server will build matches from it.
  */
 
-import type { CardFacts, CardOracle, EngineAbility } from '@rb/engine'
+import type { CardFacts, CardOracle, EngineAbility, Keyword } from '@rb/engine'
 
 import { ALL_CARDS } from './registry.js'
 import type { Ability, CardDefinition } from './schema.js'
-import { cardFullName } from './schema.js'
+import { cardFullName, keywordName } from './schema.js'
 
 function engineAbility(ability: Ability): EngineAbility {
   const base = {
@@ -40,6 +40,15 @@ function engineAbility(ability: Ability): EngineAbility {
   return base
 }
 
+/** `{ keywordValues: { assault: 2 } }` for a card with [Assault 2], or nothing. */
+function keywordValuesOf(card: CardDefinition): Pick<CardFacts, 'keywordValues'> {
+  const values: Partial<Record<Keyword, number>> = {}
+  for (const entry of card.keywords ?? []) {
+    if (typeof entry !== 'string') values[entry[0]] = entry[1]
+  }
+  return Object.keys(values).length === 0 ? {} : { keywordValues: values }
+}
+
 /** The slice of a definition the rules need. */
 export function factsOf(card: CardDefinition): CardFacts {
   return {
@@ -51,7 +60,8 @@ export function factsOf(card: CardDefinition): CardFacts {
     ...(card.supertypes === undefined ? {} : { supertypes: card.supertypes }),
     ...(card.cost === undefined ? {} : { cost: card.cost }),
     ...(card.might === undefined ? {} : { might: card.might }),
-    keywords: card.keywords ?? [],
+    keywords: (card.keywords ?? []).map(keywordName),
+    ...keywordValuesOf(card),
     abilities: (card.abilities ?? []).map(engineAbility),
   }
 }

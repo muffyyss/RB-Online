@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { beginExecution } from '../src/effects/interpreter.js'
-import { oracleFrom } from '../src/effects/oracle.js'
+import { currentMight } from '../src/effects/might.js'
+import { keywordValue, oracleFrom } from '../src/effects/oracle.js'
 import { effectStepSchema } from '../src/effects/steps.js'
 import type { EffectStep } from '../src/effects/steps.js'
 import { advanceFlow } from '../src/flow/phases.js'
@@ -113,6 +114,33 @@ describe('Might given this turn', () => {
     expect(next.objects.u?.zone).toBe('battlefield')
     expect(next.objects.u?.damage).toBe(0)
     expect(next.objects.u).not.toHaveProperty('mightThisTurn')
+  })
+})
+
+describe('Assault and Shield', () => {
+  const facts = {
+    type: 'unit' as const,
+    name: 'Raider',
+    domains: ['fury' as const],
+    tags: [],
+    might: 3,
+    keywords: ['assault' as const, 'shield' as const],
+    keywordValues: { shield: 2 },
+    abilities: [],
+  }
+  const raider = makeState([{ id: 'r', cardId: 'raider', owner: 0, zone: 'battlefield' }]).objects.r
+  if (!raider) throw new Error('missing unit')
+
+  it('count only while the unit holds the matching combat role', () => {
+    expect(currentMight(raider, facts)).toBe(3)
+    expect(currentMight({ ...raider, combatRole: 'attacker' }, facts)).toBe(4) // [Assault] is 1
+    expect(currentMight({ ...raider, combatRole: 'defender' }, facts)).toBe(5) // [Shield 2]
+  })
+
+  it('reads a keyword printed without a number as 1, and a missing one as 0', () => {
+    expect(keywordValue(facts, 'assault')).toBe(1)
+    expect(keywordValue(facts, 'shield')).toBe(2)
+    expect(keywordValue(facts, 'tank')).toBe(0)
   })
 })
 

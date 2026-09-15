@@ -18,8 +18,7 @@ export default defineCard({
       id: 'dune-drake-hunt',
       on: 'attack',
       steps: [],
-      notImplemented:
-        'triggered abilities are not dispatched by the engine yet, and the ready-enemy condition cannot be expressed',
+      notImplemented: 'the ready-enemy condition cannot be expressed yet',
     },
   ],
   text: 'When I attack, give me +2 [Might] if there is a ready enemy unit here.',

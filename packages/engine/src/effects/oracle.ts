@@ -73,7 +73,18 @@ export interface CardFacts {
   /** Printed Might, units only (143.2). Modifiers are applied by the layer system. */
   readonly might?: number
   readonly keywords: readonly Keyword[]
+  /**
+   * Printed values of valued keywords, e.g. `{ assault: 2 }` for [Assault 2].
+   * A keyword in `keywords` with no entry here has the value 1.
+   */
+  readonly keywordValues?: Readonly<Partial<Record<Keyword, number>>>
   readonly abilities: readonly EngineAbility[]
+}
+
+/** A keyword's value on a card: 0 without it, 1 if printed without a number. */
+export function keywordValue(facts: CardFacts, keyword: Keyword): number {
+  if (!facts.keywords.includes(keyword)) return 0
+  return facts.keywordValues?.[keyword] ?? 1
 }
 
 export interface CardOracle {

@@ -12,14 +12,7 @@ export default defineCard({
   domains: ['order'],
   cost: { energy: 2, power: [] },
   might: 2,
-  abilities: [
-    {
-      kind: 'passive',
-      id: 'daring-poro-assault',
-      text: '[Assault]',
-      notImplemented: 'the Assault keyword (807) is not implemented yet',
-    },
-  ],
+  keywords: ['assault'],
   text: "[Assault] (+1 [Might] while I'm an attacker.)",
   flavor: "Don't worry, they love it.",
 })

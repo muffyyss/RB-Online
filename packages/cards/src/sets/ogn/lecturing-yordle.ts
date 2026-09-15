@@ -12,13 +12,8 @@ export default defineCard({
   domains: ['mind'],
   cost: { energy: 3, power: [] },
   might: 2,
+  keywords: ['tank'],
   abilities: [
-    {
-      kind: 'passive',
-      id: 'lecturing-yordle-tank',
-      text: '[Tank]',
-      notImplemented: 'the Tank keyword (815) is not implemented yet',
-    },
     {
       kind: 'triggered',
       id: 'lecturing-yordle-draw',
