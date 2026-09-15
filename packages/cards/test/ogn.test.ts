@@ -111,6 +111,10 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'ravenbloom-student-empowered',
       'confront-effect',
       'maddened-marauder-recall',
+      'gust-effect',
+      'morbid-return-effect',
+      'traveling-merchant-trade',
+      'stormclaw-ursine-channel',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -402,5 +406,78 @@ describe('OGN units entering ready and moving', () => {
     expect(offered).toEqual(['foe'])
     expect(after.objects.foe).toMatchObject({ zone: 'base', location: base(1) })
     expect(after.battlefields.find((bf) => bf.id === 'bf-0')?.controller).toBeUndefined()
+  })
+})
+
+describe('OGN cards that move cards between zones', () => {
+  it("OGN-169 Gust returns a unit at a battlefield with 3 Might or less to its owner's hand", () => {
+    const start = mainPhase([
+      { id: 'gust', cardId: 'OGN-169', owner: 0, at: 'hand' },
+      { id: 'small', cardId: 'OGN-013', owner: 1, at: field('bf-0') }, // 2 Might
+      { id: 'big', cardId: 'OGN-219', owner: 1, at: field('bf-0') }, // 4 Might
+      { id: 'home', cardId: 'OGN-013', owner: 1, at: base(1) },
+    ])
+    const small = start.objects.small
+    if (!small) throw new Error('missing unit')
+    const damaged = {
+      ...start,
+      objects: { ...start.objects, small: { ...small, damage: 1, buffs: 1 } },
+    }
+    let offered: readonly string[] = []
+    const after = settle(act(damaged, { type: 'play-card', player: 0, card: 'gust' }), (c) => {
+      offered = c
+      return ['small']
+    })
+    expect(offered).toEqual(['small']) // 2 Might plus a Buff is 3; the 4 Might unit is not
+    expect(after.objects.small).toMatchObject({ zone: 'hand', damage: 0, buffs: 0 })
+    expect(after.players[1].hand).toEqual(['small'])
+  })
+
+  it("OGN-170 Morbid Return returns a unit from its player's trash to hand", () => {
+    const start = mainPhase([
+      { id: 'morbid', cardId: 'OGN-170', owner: 0, at: 'hand' },
+      { id: 'dead', cardId: 'OGN-219', owner: 0, at: 'trash' },
+      { id: 'spell', cardId: 'OGS-003', owner: 0, at: 'trash' },
+      { id: 'theirs', cardId: 'OGN-219', owner: 1, at: 'trash' },
+    ])
+    let offered: readonly string[] = []
+    const after = settle(act(start, { type: 'play-card', player: 0, card: 'morbid' }), (c) => {
+      offered = c
+      return ['dead']
+    })
+    expect(offered).toEqual(['dead'])
+    expect(after.players[0].hand).toEqual(['dead'])
+    expect(after.players[0].trash).toEqual(['morbid', 'spell'])
+  })
+
+  it("OGN-185 Traveling Merchant discards 1 of its player's choice, then draws 1, when it moves", () => {
+    const start = mainPhase([
+      { id: 'merchant', cardId: 'OGN-185', owner: 0, at: base(0) },
+      { id: 'keep', cardId: 'OGS-003', owner: 0, at: 'hand' },
+      { id: 'toss', cardId: 'OGN-219', owner: 0, at: 'hand' },
+    ])
+    const moved = act(start, { type: 'move', player: 0, units: ['merchant'], to: field('bf-0') })
+    expect(moved.chain[0]).toMatchObject({ abilityId: 'traveling-merchant-trade' })
+    let offered: readonly string[] = []
+    const after = settle(moved, (c) => {
+      offered = c
+      return ['toss']
+    })
+    expect([...offered].sort()).toEqual(['keep', 'toss'])
+    expect(after.players[0].trash).toEqual(['toss'])
+    expect(after.players[0].hand).toHaveLength(2) // keep, and the draw
+    expect(after.players[0].hand).toContain('keep')
+  })
+
+  it('OGN-137 Stormclaw Ursine channels 1 rune exhausted when played', () => {
+    const start = mainPhase([
+      { id: 'bear', cardId: 'OGN-137', owner: 0, at: 'hand' },
+      { id: 'rune-a', cardId: 'OGN-126', owner: 0, at: 'runeDeck' },
+      { id: 'rune-b', cardId: 'OGN-126', owner: 0, at: 'runeDeck' },
+    ])
+    const after = settle(act(start, { type: 'play-card', player: 0, card: 'bear' }))
+    expect(after.objects['rune-a']).toMatchObject({ zone: 'base', exhausted: true })
+    expect(after.players[0].runeDeck).toEqual(['rune-b'])
+    expect(after.players[0].base).toContain('rune-a')
   })
 })

@@ -174,24 +174,27 @@ function resolveItem(
     return { ...started.state, resolving: started.execution }
   }
 
-  // A spell finishes resolving and goes to its owner's trash (133.4.b.1).
-  let next = started.state
-  if (facts?.type === 'spell') {
-    const owner = next.players[object.owner]
-    next = {
-      ...next,
-      objects: { ...next.objects, [item.source]: { ...object, zone: 'trash' } },
-      players: {
-        ...next.players,
-        [object.owner]: {
-          ...owner,
-          hand: owner.hand.filter((id) => id !== item.source),
-          trash: [item.source, ...owner.trash],
-        },
-      },
-    }
+  return { ...finishSpell(started.state, oracle, item.source), resolving: null }
+}
+
+/**
+ * A spell finishes resolving and goes to its owner's trash (133.4.b.1).
+ *
+ * Called whether the spell ran straight through or paused for a choice first;
+ * anything else resolving (an ability, whose source stays put) is untouched.
+ */
+function finishSpell(state: GameState, oracle: CardOracle, source: ObjectId): GameState {
+  const object = state.objects[source]
+  if (object?.zone !== 'chain' || oracle.facts(object.cardId)?.type !== 'spell') return state
+  const owner = state.players[object.owner]
+  return {
+    ...state,
+    objects: { ...state.objects, [source]: { ...object, zone: 'trash' } },
+    players: {
+      ...state.players,
+      [object.owner]: { ...owner, trash: [source, ...owner.trash] },
+    },
   }
-  return { ...next, resolving: null }
 }
 
 /**
@@ -275,7 +278,8 @@ export function resumeResolution(
     return { state: { ...resumed.state, resolving: resumed.execution }, events }
   }
 
-  const continued = advanceChain({ ...resumed.state, resolving: null }, oracle)
+  const finished = finishSpell(resumed.state, oracle, execution.source)
+  const continued = advanceChain({ ...finished, resolving: null }, oracle)
   return { state: continued.state, events: [...events, ...continued.events] }
 }
 

@@ -285,11 +285,11 @@ describe('interpreter — resources', () => {
 
   it('refuses unimplemented ops instead of silently doing nothing', () => {
     const state = makeState([{ id: 'src', owner: 0, zone: 'base' }])
-    const result = run(state, [{ op: 'channel', amount: 2 }])
+    const result = run(state, [{ op: 'recycle', amount: 2 }])
     expect(result.events).toContainEqual({
       type: 'effect-skipped',
       reason: 'not-implemented',
-      detail: 'channel',
+      detail: 'recycle',
     })
   })
 })

@@ -42,6 +42,8 @@ function matchesKind(object: GameObject, selector: Selector, oracle: CardOracle)
       return facts.type === 'unit'
     case 'gear':
       return facts.type === 'gear'
+    case 'spell':
+      return facts.type === 'spell'
     case 'rune':
       return facts.type === 'rune'
     case 'permanent':
@@ -114,9 +116,9 @@ function matchesMight(object: GameObject, selector: Selector, oracle: CardOracle
 /**
  * Every object currently matching the selector.
  *
- * Objects that are not on the board are excluded unless the selector asks for
- * cards generally: a unit in the trash keeps its type but cannot be acted on by
- * effects that target units on the board (141.1.b.2).
+ * Objects that are not on the board are excluded unless the selector names a
+ * zone or asks for cards generally: a unit in the trash keeps its type but
+ * cannot be acted on by effects that target units on the board (141.1.b.2).
  */
 export function resolveSelector(
   state: GameState,
@@ -126,7 +128,11 @@ export function resolveSelector(
   const onBoard = selector.kind !== 'card'
   return Object.values(state.objects)
     .filter((object) => {
-      if (onBoard && object.zone !== 'base' && object.zone !== 'battlefield') return false
+      if (selector.zone) {
+        if (object.zone !== selector.zone) return false
+      } else if (onBoard && object.zone !== 'base' && object.zone !== 'battlefield') {
+        return false
+      }
       if (!matchesKind(object, selector, ctx.oracle)) return false
       if (!matchesController(object, selector, ctx)) return false
       if (!matchesLocation(object, selector, ctx, state)) return false

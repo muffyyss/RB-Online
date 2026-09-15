@@ -433,11 +433,60 @@ function runStep(
       return { state: next }
     }
 
-    case 'discard':
-    case 'recycle':
+    case 'return-to-hand': {
+      let next = state
+      for (const id of resolve(step.target)) {
+        const object = next.objects[id]
+        if (!object || object.zone === 'hand' || object.zone === 'chain') continue
+        next = moveTo(next, id, 'hand')
+        events.push({ type: 'returned-to-hand', target: id })
+      }
+      return { state: next }
+    }
+
+    case 'discard': {
+      let next = state
+      const discarded: Partial<Record<PlayerId, ObjectId[]>> = {}
+      for (const id of resolve(step.target)) {
+        const object = next.objects[id]
+        if (object?.zone !== 'hand') continue
+        next = moveTo(next, id, 'trash')
+        ;(discarded[object.owner] ??= []).push(id)
+      }
+      for (const player of [0, 1] as const) {
+        const cards = discarded[player]
+        if (cards) events.push({ type: 'discarded', player, cards })
+      }
+      return { state: next }
+    }
+
     case 'channel': {
-      // These need zone plumbing that lands with the flow machine; refusing is
-      // better than silently doing nothing.
+      const p = state.players[self]
+      const taken = p.runeDeck.slice(0, amountOf(state, step.amount ?? 1, ctx))
+      // 430.3 - fewer than asked for if the Rune Deck runs short.
+      if (taken.length === 0) return { state }
+      const objects = { ...state.objects }
+      for (const id of taken) {
+        const rune = objects[id]
+        if (!rune) continue
+        objects[id] = {
+          ...rune,
+          zone: 'base',
+          location: { kind: 'base', player: self },
+          exhausted: step.exhausted ?? false,
+        }
+      }
+      events.push({ type: 'channeled', player: self, runes: taken })
+      return {
+        state: withPlayer({ ...state, objects }, self, {
+          runeDeck: p.runeDeck.slice(taken.length),
+          base: [...p.base, ...taken],
+        }),
+      }
+    }
+
+    case 'recycle': {
+      // No card needs it yet. Refusing is better than silently doing nothing.
       events.push({ type: 'effect-skipped', reason: 'not-implemented', detail: step.op })
       return { state }
     }

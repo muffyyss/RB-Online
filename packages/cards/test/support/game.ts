@@ -19,7 +19,7 @@ export interface Spec {
   readonly cardId: string
   readonly owner: PlayerId
   /** Where it is: a zone name, or a location on the board. */
-  readonly at: 'hand' | 'mainDeck' | 'legendZone' | Location
+  readonly at: 'hand' | 'mainDeck' | 'trash' | 'runeDeck' | 'legendZone' | Location
   readonly exhausted?: boolean
 }
 

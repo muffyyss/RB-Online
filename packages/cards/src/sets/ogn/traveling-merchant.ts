@@ -17,8 +17,11 @@ export default defineCard({
       kind: 'triggered',
       id: 'traveling-merchant-trade',
       on: 'moves',
-      steps: [],
-      notImplemented: 'discard is not implemented yet',
+      steps: [
+        { op: 'choose', as: '$card', from: { kind: 'card', controller: 'self', zone: 'hand' } },
+        { op: 'discard', target: '$card' },
+        { op: 'draw', amount: 1 },
+      ],
     },
   ],
   text: 'When I move, discard 1, then draw 1.',

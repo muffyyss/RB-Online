@@ -66,6 +66,24 @@ function board(): GameState {
   ])
 }
 
+/** Put a card from hand on the Chain the way playing it does: it leaves the hand. */
+function cast(state: GameState, source: string): GameState {
+  const object = state.objects[source]
+  if (!object) throw new Error(`no ${source}`)
+  const owner = state.players[object.owner]
+  return addToChain(
+    {
+      ...state,
+      objects: { ...state.objects, [source]: { ...object, zone: 'chain' } },
+      players: {
+        ...state.players,
+        [object.owner]: { ...owner, hand: owner.hand.filter((id) => id !== source) },
+      },
+    },
+    { source, controller: object.owner },
+  )
+}
+
 describe('the Chain exists only while it holds something (330)', () => {
   it('closes the turn state when an item is added', () => {
     const state = addToChain(board(), { source: 'gift-1', controller: 0 })
@@ -132,7 +150,7 @@ describe('FEPR — passing resolves the newest item (339.1, 340.1)', () => {
   })
 
   it('sends a resolved spell to its owner trash (133.4.b.1)', () => {
-    const state = addToChain(board(), { source: 'gift-1', controller: 0 })
+    const state = cast(board(), 'gift-1')
     const { state: withPriority } = advanceChain(state, oracle)
     const first = applyAction(withPriority, { type: 'pass', player: 0 }, oracle)
     if (!first.ok) throw new Error('rejected')
@@ -145,8 +163,7 @@ describe('FEPR — passing resolves the newest item (339.1, 340.1)', () => {
 
   it('resolves newest-first when two items are stacked (340.1)', () => {
     // Bolt goes on first, Gift on top. Gift must resolve before Bolt.
-    let state = addToChain(board(), { source: 'bolt-1', controller: 0 })
-    state = addToChain(state, { source: 'gift-1', controller: 0 })
+    const state = cast(cast(board(), 'bolt-1'), 'gift-1')
     const { state: ready } = advanceChain(state, oracle)
     expect(ready.chain.map((c) => c.source)).toEqual(['bolt-1', 'gift-1'])
 
@@ -177,7 +194,7 @@ describe('resolution that needs a choice', () => {
   })
 
   it('resumes and finishes once the choice is answered', () => {
-    const state = addToChain(board(), { source: 'bolt-1', controller: 0 })
+    const state = cast(board(), 'bolt-1')
     const { state: ready } = advanceChain(state, oracle)
     const first = applyAction(ready, { type: 'pass', player: 0 }, oracle)
     if (!first.ok) throw new Error('rejected')
@@ -195,6 +212,9 @@ describe('resolution that needs a choice', () => {
     expect(answered.state.pendingChoice).toBeNull()
     expect(answered.state.resolving).toBeNull()
     expect(answered.state.chain).toHaveLength(0)
+    // Pausing for the choice must not strand the spell on the Chain (133.4.b.1).
+    expect(answered.state.objects['bolt-1']?.zone).toBe('trash')
+    expect(answered.state.players[0].trash).toContain('bolt-1')
   })
 
   it('refuses a selection that was never offered', () => {

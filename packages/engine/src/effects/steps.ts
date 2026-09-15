@@ -111,7 +111,15 @@ const newBindingSchema = bindingSchema.refine((name) => name !== SELF_BINDING, {
  * explicitly not Permanents, because they are not Main Deck cards (161.1.a).
  * Card text saying "permanent" must not catch them.
  */
-export const objectKindSchema = z.enum(['unit', 'gear', 'rune', 'permanent', 'card', 'battlefield'])
+export const objectKindSchema = z.enum([
+  'unit',
+  'gear',
+  'spell',
+  'rune',
+  'permanent',
+  'card',
+  'battlefield',
+])
 
 export const selectorSchema = z.object({
   kind: objectKindSchema,
@@ -142,6 +150,12 @@ export const selectorSchema = z.object({
     .optional(),
   /** How many to select. Absent means exactly one. */
   count: z.number().int().positive().optional(),
+  /**
+   * Look in a player zone instead of on the board: "a unit from your trash",
+   * "discard 1" (a card in hand). `controller` then means whose zone it is,
+   * since a card off the board is controlled by its owner.
+   */
+  zone: z.enum(['hand', 'trash']).optional(),
   /** Only exhausted objects (true) or only ready ones (false). Absent means either. */
   exhausted: z.boolean().optional(),
   /** "Another": never the ability's own source. */
@@ -209,13 +223,22 @@ const leafStepSchema = z.discriminatedUnion('op', [
   // --- cards and resources ---
   // amount defaults to 1, who defaults to 'self'
   z.object({ op: z.literal('draw'), amount: amountSchema.optional(), who }),
-  z.object({ op: z.literal('discard'), amount: amountSchema.optional(), who }),
+  /** Put chosen cards from their owner's hand into the trash (422). */
+  z.object({ op: z.literal('discard'), target: targetSchema }),
   z.object({
     op: z.literal('recycle'),
     amount: amountSchema.optional(),
     from: z.enum(['hand', 'trash', 'base']).optional(), // defaults to 'hand'
   }),
-  z.object({ op: z.literal('channel'), amount: amountSchema.optional() }),
+  /**
+   * Channel runes from the top of the Rune Deck (430), readied by default
+   * (430.2.a) or `exhausted: true` for "channel 1 rune exhausted".
+   */
+  z.object({
+    op: z.literal('channel'),
+    amount: amountSchema.optional(),
+    exhausted: z.boolean().optional(),
+  }),
   z.object({
     op: z.literal('add'),
     energy: z.number().int().nonnegative().optional(),
@@ -232,6 +255,12 @@ const leafStepSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('deal'), amount: amountSchema, target: targetSchema }),
   z.object({ op: z.literal('heal'), target: targetSchema }),
   z.object({ op: z.literal('kill'), target: targetSchema }),
+  /**
+   * Return cards to their owner's hand, from the board ("return a unit at a
+   * battlefield") or a zone ("return a unit from your trash"). Leaving the
+   * board clears damage, Buffs and statuses like any other zone change.
+   */
+  z.object({ op: z.literal('return-to-hand'), target: targetSchema }),
   z.object({ op: z.literal('banish'), target: targetSchema }),
   z.object({ op: z.literal('buff'), amount: amountSchema.optional(), target: targetSchema }),
   z.object({ op: z.literal('stun'), target: targetSchema }),

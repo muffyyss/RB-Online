@@ -15,8 +15,14 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'gust-effect',
-      steps: [],
-      notImplemented: "returning a unit to its owner's hand has no step yet",
+      steps: [
+        {
+          op: 'choose',
+          as: '$unit',
+          from: { kind: 'unit', at: 'any-battlefield', might: { max: 3 } },
+        },
+        { op: 'return-to-hand', target: '$unit' },
+      ],
     },
   ],
   text: "[Reaction] (Play any time, even before spells and abilities resolve.) Return a unit at a battlefield with 3 [Might] or less to its owner's hand.",

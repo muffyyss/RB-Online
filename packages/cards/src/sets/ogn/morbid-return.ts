@@ -15,8 +15,10 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'morbid-return-effect',
-      steps: [],
-      notImplemented: 'returning a card from trash to hand has no step yet',
+      steps: [
+        { op: 'choose', as: '$unit', from: { kind: 'unit', controller: 'self', zone: 'trash' } },
+        { op: 'return-to-hand', target: '$unit' },
+      ],
     },
   ],
   text: '[Action] (Play on your turn or in showdowns.) Return a unit from your trash to your hand.',

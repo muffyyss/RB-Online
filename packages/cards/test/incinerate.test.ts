@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import card from '../src/sets/ogs/incinerate.js'
+import { act, field, mainPhase, settle } from './support/game.js'
 
 describe('OGS-003 Incinerate', () => {
   it('matches the printed card', () => {
@@ -29,5 +30,19 @@ describe('OGS-003 Incinerate', () => {
     const effect = card.abilities?.find((a) => a.kind === 'spell')
     const choose = effect?.steps[0]
     expect(choose).toMatchObject({ op: 'choose', from: { at: 'any-battlefield' } })
+  })
+})
+
+describe('OGS-003 Incinerate in play', () => {
+  it("goes to its owner's trash after resolving, even though it paused for a target (133.4.b.1)", () => {
+    const start = mainPhase([
+      { id: 'spell', cardId: 'OGS-003', owner: 0, at: 'hand' },
+      { id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-0') },
+    ])
+    const after = settle(act(start, { type: 'play-card', player: 0, card: 'spell' }))
+    expect(after.objects.foe?.damage).toBeGreaterThan(0)
+    expect(after.objects.spell?.zone).toBe('trash')
+    expect(after.players[0].trash).toEqual(['spell'])
+    expect(after.players[0].hand).toEqual([])
   })
 })
