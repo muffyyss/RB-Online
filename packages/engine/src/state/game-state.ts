@@ -178,6 +178,8 @@ export interface ChainItem {
   readonly pending: boolean
   /** Objects chosen while playing it, keyed by binding name (`$victim`). */
   readonly bindings: Readonly<Record<string, readonly ObjectId[]>>
+  /** Where a unit being played will enter (355.2). Its controller's Base when absent. */
+  readonly to?: Location
 }
 
 /**
@@ -199,9 +201,11 @@ export interface PendingChoice {
   /**
    * `may`: a yes-or-no question, "you may ...". The only candidate is the
    * ability's source; choosing it means yes, choosing nothing means no.
+   * `predict`: the only candidate is the top card of the player's Main Deck,
+   * shown to them alone; choosing it recycles it (436).
    * Absent for an ordinary choice of objects.
    */
-  readonly kind?: 'may'
+  readonly kind?: 'may' | 'predict'
 }
 
 /** One level of nesting inside a resolving ability: a step list and a cursor. */

@@ -231,6 +231,11 @@ export const passiveEffectSchema = z.discriminatedUnion('kind', [
    */
   z.object({ kind: z.literal('enters-ready') }),
   /**
+   * "You may play me to an open battlefield": one that is unoccupied and
+   * uncontrolled (170.11.c) becomes a valid place to play this unit (355.2.b).
+   */
+  z.object({ kind: z.literal('play-to-open-battlefield') }),
+  /**
    * "I have +2 [M]", "Units here have +1 [M]": Might in the Arithmetic layer
    * (477.3) while the source is in play and every condition holds. Not
    * snapshotted, since it comes from a passive (477.3.b): it follows the board.
@@ -310,11 +315,16 @@ const leafStepSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('draw'), amount: amountSchema.optional(), who }),
   /** Put chosen cards from their owner's hand into the trash (422). */
   z.object({ op: z.literal('discard'), target: targetSchema }),
-  z.object({
-    op: z.literal('recycle'),
-    amount: amountSchema.optional(),
-    from: z.enum(['hand', 'trash', 'base']).optional(), // defaults to 'hand'
-  }),
+  /**
+   * Put cards on the bottom of their owner's deck (416): runes to the Rune
+   * Deck, anything else to the Main Deck.
+   */
+  z.object({ op: z.literal('recycle'), target: targetSchema }),
+  /**
+   * Predict (436): look at the top card of your Main Deck, and you may recycle
+   * it. The player is asked, and sees the card.
+   */
+  z.object({ op: z.literal('predict') }),
   /**
    * Channel runes from the top of the Rune Deck (430), readied by default
    * (430.2.a) or `exhausted: true` for "channel 1 rune exhausted".

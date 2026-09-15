@@ -17,7 +17,7 @@ export default defineCard({
       kind: 'passive',
       id: 'sneaky-deckhand-open-battlefield',
       text: 'You may play me to an open battlefield.',
-      notImplemented: 'playing a unit anywhere but base is not implemented',
+      effect: { kind: 'play-to-open-battlefield' },
     },
   ],
   text: 'You may play me to an open battlefield.',

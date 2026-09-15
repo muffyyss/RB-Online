@@ -85,6 +85,20 @@ export interface CardFacts {
   readonly token?: true
 }
 
+/**
+ * Abilities a keyword stands for, as the engine runs them.
+ *
+ * Most keywords are applied where they matter (Tank in damage assignment,
+ * Assault in Might). A keyword that is shorthand for a triggered ability is
+ * spelled out here instead, so it goes on the Chain like any other:
+ * [Vision] is "When this is played, predict" (817.1.b).
+ */
+export function keywordAbilities(keywords: readonly Keyword[]): readonly EngineAbility[] {
+  return keywords.includes('vision')
+    ? [{ id: 'vision', kind: 'triggered', on: 'played', steps: [{ op: 'predict' }] }]
+    : []
+}
+
 /** Whether a card has a working passive with this effect. */
 export function hasPassive(facts: CardFacts, kind: PassiveEffect['kind']): boolean {
   return facts.abilities.some(

@@ -7,6 +7,7 @@ import {
   abilitiesOf,
   canPass,
   canPlay,
+  playsOf,
   movesOf,
   reduceMatch,
   waitingOnOpponent,
@@ -93,6 +94,7 @@ describe('reading legal actions', () => {
     { type: 'concede', player: 1 },
     { type: 'pass', player: 1 },
     { type: 'play-card', player: 1, card: 'o5' },
+    { type: 'play-card', player: 1, card: 'o5', to: { kind: 'battlefield', id: 'o1' } },
     { type: 'activate-ability', player: 1, source: 'o9', abilityId: 'fury-rune-energy' },
     { type: 'move', player: 1, units: ['o7'], to: { kind: 'battlefield', id: 'o1' } },
     { type: 'move', player: 1, units: ['o7'], to: { kind: 'base', player: 1 } },
@@ -101,6 +103,11 @@ describe('reading legal actions', () => {
   it('answers what the player may do with each object', () => {
     expect(canPlay(legal, 'o5')).toBe(true)
     expect(canPlay(legal, 'o6')).toBe(false)
+    // One play per place a unit may enter, the plain play first (355.2).
+    expect(playsOf(legal, 'o5').map((play) => play.to)).toEqual([
+      undefined,
+      { kind: 'battlefield', id: 'o1' },
+    ])
     expect(abilitiesOf(legal, 'o9')).toEqual(['fury-rune-energy'])
     expect(movesOf(legal, 'o7')).toHaveLength(2)
     expect(canPass(legal)).toBe(true)

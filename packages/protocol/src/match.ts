@@ -33,7 +33,7 @@ export const gameActionSchema = z.discriminatedUnion('type', [
     player,
     chosen: z.array(objectId).max(40).readonly(),
   }),
-  z.object({ type: z.literal('play-card'), player, card: objectId }),
+  z.object({ type: z.literal('play-card'), player, card: objectId, to: location.optional() }),
   z.object({
     type: z.literal('activate-ability'),
     player,

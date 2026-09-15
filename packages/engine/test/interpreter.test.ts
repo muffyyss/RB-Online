@@ -282,16 +282,6 @@ describe('interpreter — resources', () => {
     expect(pool.energy).toBe(0)
     expect(pool.restricted).toEqual([{ energy: 2, power: {}, universal: 0, onlyFor: ['spell'] }])
   })
-
-  it('refuses unimplemented ops instead of silently doing nothing', () => {
-    const state = makeState([{ id: 'src', owner: 0, zone: 'base' }])
-    const result = run(state, [{ op: 'recycle', amount: 2 }])
-    expect(result.events).toContainEqual({
-      type: 'effect-skipped',
-      reason: 'not-implemented',
-      detail: 'recycle',
-    })
-  })
 })
 
 describe('interpreter — determinism', () => {

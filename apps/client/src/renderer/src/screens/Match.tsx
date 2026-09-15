@@ -16,11 +16,11 @@ import type { GameAction, GameObject, GameView, Location, ObjectId, PlayerId } f
 import {
   abilitiesOf,
   canPass,
-  canPlay,
   movesOf,
   mustChoose,
   mustMulligan,
   objectsAt,
+  playsOf,
   waitingOnOpponent,
 } from '../../../shared/match.js'
 import type { MatchSession } from '../../../shared/match.js'
@@ -220,6 +220,23 @@ function Choice(props: { session: MatchSession; view: GameView }) {
     setPicked([])
   }
 
+  // Predict: the top card of the deck, shown to this player only (436.1).
+  if (choice.kind === 'predict') {
+    const offered = choice.candidates
+    const top = offered[0]
+    return (
+      <div className="card choice">
+        <h2>Top of your deck: {top === undefined ? 'nothing' : nameOf(view, top)}</h2>
+        <div className="choice-options">
+          <button className="primary" onClick={() => answer(offered)}>
+            Recycle it
+          </button>
+          <button onClick={() => answer([])}>Keep it on top</button>
+        </div>
+      </div>
+    )
+  }
+
   // "You may ...": the only candidate is the source; choosing it means yes.
   if (choice.kind === 'may') {
     const offered = choice.candidates
@@ -310,16 +327,17 @@ function Hand(props: { session: MatchSession; view: GameView }) {
                   {chosen ? 'Keep' : 'Set aside'}
                 </button>
               ) : (
-                canPlay(session.legal, id) && (
-                  <button
-                    className="primary"
-                    onClick={() =>
-                      send(session, { type: 'play-card', player: session.seat, card: id })
-                    }
-                  >
-                    Play
-                  </button>
-                )
+                <div className="piece-actions">
+                  {playsOf(session.legal, id).map((play) => (
+                    <button
+                      key={play.to?.kind === 'battlefield' ? play.to.id : 'base'}
+                      className={play.to ? '' : 'primary'}
+                      onClick={() => send(session, { ...play, player: session.seat })}
+                    >
+                      {play.to ? `Play to ${locationName(view, play.to, session.seat)}` : 'Play'}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )

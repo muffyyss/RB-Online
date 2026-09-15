@@ -239,7 +239,7 @@ interface StepOutcome {
     readonly min: number
     readonly max: number
     readonly optional: boolean
-    readonly kind?: 'may'
+    readonly kind?: 'may' | 'predict'
   }
   /**
    * A frame to push, for steps that contain other steps. With a choice as
@@ -585,9 +585,39 @@ function runStep(
     }
 
     case 'recycle': {
-      // No card needs it yet. Refusing is better than silently doing nothing.
-      events.push({ type: 'effect-skipped', reason: 'not-implemented', detail: step.op })
-      return { state }
+      let next = state
+      const recycled: Partial<Record<PlayerId, ObjectId[]>> = {}
+      for (const id of resolve(step.target)) {
+        const object = next.objects[id]
+        if (!object || object.zone === 'chain') continue
+        const deck = oracle.facts(object.cardId)?.type === 'rune' ? 'runeDeck' : 'mainDeck'
+        // 416.1 - the bottom of the owner's deck.
+        next = moveTo(next, id, deck, true)
+        ;(recycled[object.owner] ??= []).push(id)
+      }
+      for (const player of [0, 1] as const) {
+        const cards = recycled[player]
+        if (cards) events.push({ type: 'recycled', player, cards })
+      }
+      return { state: next }
+    }
+
+    case 'predict': {
+      const top = state.players[self].mainDeck[0]
+      if (top === undefined) return { state }
+      const answer = `$predict-${String(execution.frames.length)}`
+      return {
+        state,
+        choice: {
+          binding: answer,
+          candidates: [top],
+          min: 0,
+          max: 1,
+          optional: true,
+          kind: 'predict',
+        },
+        push: { steps: [{ op: 'recycle', target: answer }], index: 0, onlyIf: answer },
+      }
     }
 
     case 'may': {

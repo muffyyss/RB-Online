@@ -79,6 +79,17 @@ export function canPlay(legal: readonly GameAction[], card: ObjectId): boolean {
   return legal.some((a) => a.type === 'play-card' && a.card === card)
 }
 
+/**
+ * The legal ways to play a card: one per place a unit may enter (355.2). The
+ * plain play (to Base, or anything that is not a unit) comes first.
+ */
+export function playsOf(
+  legal: readonly GameAction[],
+  card: ObjectId,
+): readonly Extract<GameAction, { type: 'play-card' }>[] {
+  return legal.flatMap((a) => (a.type === 'play-card' && a.card === card ? [a] : []))
+}
+
 export function abilitiesOf(legal: readonly GameAction[], source: ObjectId): readonly string[] {
   return legal.flatMap((a) =>
     a.type === 'activate-ability' && a.source === source ? [a.abilityId] : [],

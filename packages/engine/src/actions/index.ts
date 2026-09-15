@@ -9,6 +9,7 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
+import { hasPassive } from '../effects/oracle.js'
 import type { CardFacts, CardOracle } from '../effects/oracle.js'
 import { canPay, pay } from '../model/cost.js'
 import { addToChain, advanceChain, passOnChain, resumeResolution } from '../flow/chain.js'
@@ -31,8 +32,16 @@ export type GameAction =
       readonly player: PlayerId
       readonly chosen: readonly ObjectId[]
     }
-  /** Play a card from hand (349-358). */
-  | { readonly type: 'play-card'; readonly player: PlayerId; readonly card: ObjectId }
+  /**
+   * Play a card from hand (349-358). A unit enters at `to`, chosen as it is
+   * played (355.2); its controller's Base when absent.
+   */
+  | {
+      readonly type: 'play-card'
+      readonly player: PlayerId
+      readonly card: ObjectId
+      readonly to?: Location
+    }
   /** Activate an ability of a permanent you control (376, 398-406). */
   | {
       readonly type: 'activate-ability'
@@ -74,6 +83,7 @@ export interface RuleViolation {
     | 'unknown-ability'
     | 'already-exhausted'
     | 'illegal-move'
+    | 'illegal-location'
     | 'not-setup'
     | 'too-many-cards'
     /** The card's effect is recorded but the engine cannot run it yet. */
@@ -93,6 +103,38 @@ export interface RuleViolation {
 function unimplementedEffect(facts: CardFacts): string | null {
   if (facts.type !== 'spell') return null
   return facts.abilities.find((a) => a.kind === 'spell')?.notImplemented ?? null
+}
+
+/**
+ * Where a unit may be played (355.2): its controller's Base, any Battlefield
+ * they control (355.2.a), and any open Battlefield - unoccupied and
+ * uncontrolled (170.11.c) - if the unit says it may go there (355.2.b).
+ * Base comes first. Anything that is not a unit enters at Base.
+ */
+export function playLocations(
+  state: GameState,
+  player: PlayerId,
+  facts: CardFacts,
+): readonly Location[] {
+  const locations: Location[] = [{ kind: 'base', player }]
+  if (facts.type !== 'unit') return locations
+  const toOpen = hasPassive(facts, 'play-to-open-battlefield')
+  for (const bf of state.battlefields) {
+    const occupied = Object.values(state.objects).some(
+      (object) => object.location?.kind === 'battlefield' && object.location.id === bf.id,
+    )
+    const open = bf.controller === undefined && !occupied
+    if (bf.controller === player || (toOpen && open)) {
+      locations.push({ kind: 'battlefield', id: bf.id })
+    }
+  }
+  return locations
+}
+
+function sameLocation(a: Location, b: Location): boolean {
+  return a.kind === 'base'
+    ? b.kind === 'base' && a.player === b.player
+    : b.kind === 'battlefield' && a.id === b.id
 }
 
 /**
@@ -272,6 +314,16 @@ export function applyAction(
       const refusal = timingRefusal(state, action.player, facts.keywords)
       if (refusal) return reject('bad-timing', refusal)
 
+      // 355.2 - a unit's Location is chosen as it is played, from the valid ones.
+      if (
+        action.to &&
+        !playLocations(state, action.player, facts).some(
+          (at) => action.to && sameLocation(at, action.to),
+        )
+      ) {
+        return reject('illegal-location', 'that card cannot be played there')
+      }
+
       // 356 - Total Cost. Cost modifications (356.1-356.5) are not implemented;
       // no OGS card applies one. The base cost is the total for now.
       const cost = facts.cost ?? { energy: 0, power: [] }
@@ -300,7 +352,11 @@ export function applyAction(
         },
       }
 
-      const queued = addToChain(moved, { source: action.card, controller: action.player })
+      const queued = addToChain(moved, {
+        source: action.card,
+        controller: action.player,
+        ...(action.to === undefined ? {} : { to: action.to }),
+      })
       const drained = advanceChain({ ...queued, priority: null }, oracle)
       const after = afterChain(drained, oracle)
       return { ok: true, state: after.state, events: after.events }
@@ -520,7 +576,14 @@ export function legalActions(
     if (!canPay(cost, facts.domains, state.players[player].runePool, { cardType: facts.type })) {
       continue
     }
-    actions.push({ type: 'play-card', player, card })
+    // One action per place it may enter; Base is the plain play.
+    for (const to of playLocations(state, player, facts)) {
+      actions.push(
+        to.kind === 'base'
+          ? { type: 'play-card', player, card }
+          : { type: 'play-card', player, card, to },
+      )
+    }
   }
 
   // Activated abilities of permanents this player controls.

@@ -17,7 +17,14 @@ import { beginExecution, runExecution } from '../effects/interpreter.js'
 import { hasPassive } from '../effects/oracle.js'
 import type { CardOracle, EngineAbility } from '../effects/oracle.js'
 import type { GameEvent } from '../effects/events.js'
-import type { ChainItem, Execution, GameState, ObjectId, PlayerId } from '../state/game-state.js'
+import type {
+  ChainItem,
+  Execution,
+  GameState,
+  Location,
+  ObjectId,
+  PlayerId,
+} from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
 import { enqueueTriggers } from './triggers.js'
 
@@ -51,13 +58,14 @@ function findAbility(
  */
 export function addToChain(
   state: GameState,
-  item: { source: ObjectId; controller: PlayerId; abilityId?: string },
+  item: { source: ObjectId; controller: PlayerId; abilityId?: string; to?: Location },
 ): GameState {
   const chainItem: ChainItem = {
     id: `chain-${String(state.nextObjectId)}`,
     controller: item.controller,
     source: item.source,
     ...(item.abilityId === undefined ? {} : { abilityId: item.abilityId }),
+    ...(item.to === undefined ? {} : { to: item.to }),
     pending: true,
     bindings: {},
   }
@@ -141,8 +149,9 @@ function resolveItem(
         ...state.objects,
         [item.source]: {
           ...object,
-          zone: 'base',
-          location: { kind: 'base', player: item.controller },
+          // 355.2 - where the player chose when playing it; Base by default.
+          zone: item.to?.kind === 'battlefield' ? 'battlefield' : 'base',
+          location: item.to ?? { kind: 'base', player: item.controller },
           controller: item.controller,
           exhausted: facts.type === 'unit' && !entersReady,
         },

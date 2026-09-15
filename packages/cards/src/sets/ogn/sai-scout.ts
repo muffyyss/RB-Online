@@ -12,18 +12,13 @@ export default defineCard({
   domains: ['chaos'],
   cost: { energy: 6, power: [] },
   might: 5,
+  keywords: ['vision'],
   abilities: [
-    {
-      kind: 'passive',
-      id: 'sai-scout-vision',
-      text: '[Vision]',
-      notImplemented: 'the Vision keyword (817) is not implemented yet',
-    },
     {
       kind: 'passive',
       id: 'sai-scout-open-battlefield',
       text: 'You may play me to an open battlefield.',
-      notImplemented: 'playing a unit anywhere but base is not implemented',
+      effect: { kind: 'play-to-open-battlefield' },
     },
   ],
   text: '[Vision] (When you play me, look at the top card of your Main Deck. You may recycle it.) You may play me to an open battlefield.',

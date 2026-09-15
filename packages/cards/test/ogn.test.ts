@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { advanceFlow, applyAction, beginExecution, mightOf } from '@rb/engine'
+import {
+  advanceFlow,
+  applyAction,
+  beginExecution,
+  legalActions,
+  mightOf,
+  redactFor,
+} from '@rb/engine'
 import type { GameState } from '@rb/engine'
 
 import { getCard } from '../src/registry.js'
@@ -125,6 +132,8 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'void-gate-bonus-damage',
       'faithful-manufactor-recruit',
       'noxian-drummer-recruit',
+      'sai-scout-open-battlefield',
+      'sneaky-deckhand-open-battlefield',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -710,5 +719,86 @@ describe('OGN cards that play tokens', () => {
     const moved = act(start, { type: 'move', player: 0, units: ['drummer'], to: base(0) })
     expect(moved.chain).toEqual([])
     expect(recruits(settle(moved))).toEqual([])
+  })
+})
+
+describe('where units are played (355.2), and Vision', () => {
+  const plays = (state: GameState, card: string) =>
+    legalActions(state, 0, oracle).flatMap((action) =>
+      action.type === 'play-card' && action.card === card
+        ? [action.to?.kind === 'battlefield' ? action.to.id : 'base']
+        : [],
+    )
+
+  it('any unit may be played to a battlefield its player controls, not to others', () => {
+    const start = mainPhase([
+      { id: 'unit', cardId: 'OGN-219', owner: 0, at: 'hand' },
+      { id: 'holder', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+    ])
+    const held: GameState = {
+      ...start,
+      battlefields: start.battlefields.map((bf) =>
+        bf.id === 'bf-0' ? { ...bf, controller: 0 as const } : bf,
+      ),
+    }
+    expect(plays(held, 'unit')).toEqual(['base', 'bf-0'])
+    const after = settle(
+      act(held, { type: 'play-card', player: 0, card: 'unit', to: field('bf-0') }),
+    )
+    expect(after.objects.unit).toMatchObject({
+      zone: 'battlefield',
+      location: field('bf-0'),
+      exhausted: true,
+    })
+    expect(() =>
+      act(held, { type: 'play-card', player: 0, card: 'unit', to: field('bf-1') }),
+    ).toThrow(/cannot be played there/)
+  })
+
+  it('OGN-176 Sneaky Deckhand may be played to an open battlefield, and conquers it', () => {
+    const start = mainPhase([
+      { id: 'deckhand', cardId: 'OGN-176', owner: 0, at: 'hand' },
+      { id: 'plain', cardId: 'OGN-219', owner: 0, at: 'hand' },
+      { id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-0') }, // bf-0 is occupied
+    ])
+    expect(plays(start, 'deckhand')).toEqual(['base', 'bf-1'])
+    expect(plays(start, 'plain')).toEqual(['base'])
+
+    const after = settle(
+      act(start, { type: 'play-card', player: 0, card: 'deckhand', to: field('bf-1') }),
+    )
+    expect(after.objects.deckhand).toMatchObject({ zone: 'battlefield', location: field('bf-1') })
+    expect(after.battlefields.find((bf) => bf.id === 'bf-1')?.controller).toBe(0)
+    expect(after.players[0].points).toBe(1) // establishing Control is a Conquer (466.5.d)
+  })
+
+  it('OGN-171 Mystic Poro (Vision) shows its player the top card, and they may recycle it', () => {
+    const start = mainPhase([{ id: 'poro', cardId: 'OGN-171', owner: 0, at: 'hand' }])
+    const played = act(start, { type: 'play-card', player: 0, card: 'poro' })
+    expect(played.chain[0]).toMatchObject({ source: 'poro', abilityId: 'vision' })
+
+    let asking = played
+    while (!asking.pendingChoice) {
+      asking = act(asking, { type: 'pass', player: asking.priority ?? 0 })
+    }
+    const top = start.players[0].mainDeck[0]
+    expect(asking.pendingChoice).toMatchObject({ kind: 'predict', candidates: [top] })
+    // Looked at by its player alone (436.1).
+    expect(top && redactFor(asking, 0).objects[top]).toBeDefined()
+    expect(top && redactFor(asking, 1).objects[top]).toBeUndefined()
+
+    const recycled = settle(asking, (candidates) => candidates)
+    expect(recycled.players[0].mainDeck.at(-1)).toBe(top)
+    const kept = settle(asking, () => [])
+    expect(kept.players[0].mainDeck[0]).toBe(top)
+  })
+
+  it('OGN-174 Sai Scout has Vision and may be played to an open battlefield', () => {
+    const start = mainPhase([{ id: 'scout', cardId: 'OGN-174', owner: 0, at: 'hand' }])
+    expect(plays(start, 'scout')).toEqual(['base', 'bf-0', 'bf-1'])
+    const played = act(start, { type: 'play-card', player: 0, card: 'scout', to: field('bf-0') })
+    expect(played.chain[0]).toMatchObject({ source: 'scout', abilityId: 'vision' })
+    const after = settle(played, () => [])
+    expect(after.objects.scout?.location).toEqual(field('bf-0'))
   })
 })

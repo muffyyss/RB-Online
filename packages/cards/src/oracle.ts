@@ -7,6 +7,7 @@
  * server will build matches from it.
  */
 
+import { keywordAbilities } from '@rb/engine'
 import type { CardFacts, CardOracle, EngineAbility, Keyword } from '@rb/engine'
 
 import { ALL_CARDS } from './registry.js'
@@ -66,7 +67,11 @@ export function factsOf(card: CardDefinition): CardFacts {
     ...(card.might === undefined ? {} : { might: card.might }),
     keywords: (card.keywords ?? []).map(keywordName),
     ...keywordValuesOf(card),
-    abilities: (card.abilities ?? []).map(engineAbility),
+    // Printed abilities, then any a keyword stands for ([Vision]).
+    abilities: [
+      ...(card.abilities ?? []).map(engineAbility),
+      ...keywordAbilities((card.keywords ?? []).map(keywordName)),
+    ],
     ...(card.token ? { token: true as const } : {}),
   }
 }

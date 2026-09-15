@@ -12,14 +12,7 @@ export default defineCard({
   domains: ['chaos'],
   cost: { energy: 2, power: [] },
   might: 2,
-  abilities: [
-    {
-      kind: 'passive',
-      id: 'mystic-poro-vision',
-      text: '[Vision]',
-      notImplemented: 'the Vision keyword (817) is not implemented yet',
-    },
-  ],
+  keywords: ['vision'],
   text: '[Vision] (When you play me, look at the top card of your Main Deck. You may recycle it.)',
   flavor: 'Forecast: Sunny, with a chance of snax.',
 })

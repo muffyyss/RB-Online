@@ -65,8 +65,8 @@ export interface PendingChoiceView {
   readonly candidateCount: number
   readonly min: number
   readonly max: number
-  /** `may` for a yes-or-no question; absent for a choice of objects. */
-  readonly kind?: 'may'
+  /** `may` for a yes-or-no question, `predict` for a look at the top card. */
+  readonly kind?: 'may' | 'predict'
 }
 
 export interface GameView {
@@ -185,8 +185,11 @@ function redactChoice(choice: PendingChoice | null, viewer: PlayerId): PendingCh
  */
 export function redactFor(state: GameState, viewer: PlayerId): GameView {
   const objects: Record<ObjectId, GameObject> = {}
+  // Whoever is choosing sees what they are choosing from, even from a hidden
+  // zone: that is how a Predicted card is looked at (436.1).
+  const choosing = state.pendingChoice?.player === viewer ? state.pendingChoice.candidates : []
   for (const [id, object] of Object.entries(state.objects)) {
-    if (canSee(object, viewer)) objects[id] = object
+    if (canSee(object, viewer) || choosing.includes(id)) objects[id] = object
   }
 
   const players = {} as Record<PlayerId, PlayerView>

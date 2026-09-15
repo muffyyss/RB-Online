@@ -98,7 +98,7 @@ export type {
 export { canSee, hiddenIdsFor, redactFor } from './state/redact.js'
 export type { GameView, PendingChoiceView, PlayerView, ZoneView } from './state/redact.js'
 
-export { hasPassive, keywordValue, oracleFrom } from './effects/oracle.js'
+export { hasPassive, keywordAbilities, keywordValue, oracleFrom } from './effects/oracle.js'
 export type { CardFacts, CardOracle } from './effects/oracle.js'
 export { resolveSelector, selectorCount } from './effects/selector.js'
 export type { SelectorContext } from './effects/selector.js'
@@ -118,7 +118,7 @@ export {
 } from './flow/phases.js'
 export type { AdvanceResult } from './flow/phases.js'
 
-export { applyAction, legalActions } from './actions/index.js'
+export { applyAction, legalActions, playLocations } from './actions/index.js'
 export type { ActionResult, GameAction, RuleViolation } from './actions/index.js'
 
 export { addToChain, advanceChain, passOnChain, resumeResolution } from './flow/chain.js'

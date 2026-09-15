@@ -65,6 +65,7 @@ export const IMPLEMENTED_KEYWORDS: readonly Keyword[] = [
   'shield',
   'tank',
   'ganking',
+  'vision',
 ]
 
 export function isKeyword(value: unknown): value is Keyword {
