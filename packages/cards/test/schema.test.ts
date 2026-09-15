@@ -54,3 +54,24 @@ describe('card schema — keywords', () => {
     expect(accepts(['deflect'])).toBe(false)
   })
 })
+
+describe('card schema — passives', () => {
+  const withPassive = (passive: Record<string, unknown>) => ({
+    id: 'OGS-999',
+    set: 'ogs',
+    name: 'Test Unit',
+    type: 'unit',
+    domains: ['body'],
+    cost: { energy: 2, power: [] },
+    might: 2,
+    abilities: [{ kind: 'passive', id: 'test-passive', text: 'I enter ready.', ...passive }],
+  })
+  const accepts = (passive: Record<string, unknown>) =>
+    cardDefinitionSchema.safeParse(withPassive(passive)).success
+
+  it('needs an effect the engine understands, or a reason it has none', () => {
+    expect(accepts({ effect: { kind: 'enters-ready' } })).toBe(true)
+    expect(accepts({ notImplemented: 'waiting on something' })).toBe(true)
+    expect(accepts({})).toBe(false)
+  })
+})

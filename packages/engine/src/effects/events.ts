@@ -41,6 +41,8 @@ export type GameEvent =
 
   // --- board ---
   | { readonly type: 'moved'; readonly unit: ObjectId; readonly to: Location }
+  /** A player's units enter ready for the rest of the turn. */
+  | { readonly type: 'units-enter-ready'; readonly player: PlayerId }
   | {
       readonly type: 'battlefield-controlled'
       readonly battlefield: ObjectId

@@ -3,9 +3,8 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-009 — transcribed from the printed card.
  *
- * Both parts are missing from the engine: [Ganking] (810) lets him move
- * battlefield to battlefield, and entering ready overrides units entering
- * exhausted (143.4). Recorded as passives until each lands.
+ * [Ganking] (810) lets him move battlefield to battlefield, and entering ready
+ * replaces entering exhausted (143.4).
  */
 export default defineCard({
   id: 'OGS-009',
@@ -18,18 +17,13 @@ export default defineCard({
   domains: ['body'],
   cost: { energy: 7, power: [{ kind: 'domain', domain: 'body' }] },
   might: 6,
+  keywords: ['ganking'],
   abilities: [
-    {
-      kind: 'passive',
-      id: 'master-yi-honed-ganking',
-      text: '[Ganking]',
-      notImplemented: 'the Ganking keyword (810) is not implemented yet',
-    },
     {
       kind: 'passive',
       id: 'master-yi-honed-enter-ready',
       text: 'I enter ready.',
-      notImplemented: 'entering ready is not implemented yet; units enter exhausted (143.4)',
+      effect: { kind: 'enters-ready' },
     },
   ],
   text: '[Ganking] (I can move from battlefield to battlefield.) I enter ready.',

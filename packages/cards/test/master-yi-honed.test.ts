@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import card from '../src/sets/ogs/master-yi-honed.js'
-import { expectRecordedButNotRunnable } from './support/recorded.js'
+import { act, base, field, mainPhase, settle } from './support/game.js'
 
 describe('OGS-009 Master Yi, Honed', () => {
   it('matches the printed card', () => {
@@ -17,8 +17,23 @@ describe('OGS-009 Master Yi, Honed', () => {
     })
   })
 
-  it('records Ganking and entering ready, each marked as not yet implemented', () => {
-    expectRecordedButNotRunnable(card, 'master-yi-honed-ganking', { kind: 'passive' })
-    expectRecordedButNotRunnable(card, 'master-yi-honed-enter-ready', { kind: 'passive' })
+  it('has Ganking and enters ready', () => {
+    expect(card.keywords).toEqual(['ganking'])
+    const start = mainPhase([{ id: 'yi', cardId: 'OGS-009', owner: 0, at: 'hand' }])
+    const played = settle(act(start, { type: 'play-card', player: 0, card: 'yi' }))
+    expect(played.objects.yi).toMatchObject({ zone: 'base', exhausted: false })
+  })
+
+  it('moves battlefield to battlefield, which a unit without Ganking cannot (144.4.c.1)', () => {
+    const start = mainPhase([
+      { id: 'yi', cardId: 'OGS-009', owner: 0, at: field('bf-0') },
+      { id: 'plain', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+      { id: 'home', cardId: 'OGN-219', owner: 0, at: base(0) },
+    ])
+    const moved = act(start, { type: 'move', player: 0, units: ['yi'], to: field('bf-1') })
+    expect(moved.objects.yi?.location).toEqual(field('bf-1'))
+    expect(() =>
+      act(start, { type: 'move', player: 0, units: ['plain'], to: field('bf-1') }),
+    ).toThrow(/refused/)
   })
 })

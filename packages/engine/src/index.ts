@@ -43,6 +43,7 @@ export {
   bindingSchema,
   effectStepSchema,
   isImplementedOp,
+  passiveEffectSchema,
   selectorSchema,
   targetSchema,
   triggerConditionSchema,
@@ -54,6 +55,7 @@ export type {
   EffectStep,
   TriggerCondition,
   GameActionName,
+  PassiveEffect,
   Selector,
   Target,
 } from './effects/steps.js'
@@ -92,7 +94,7 @@ export type {
 export { canSee, hiddenIdsFor, redactFor } from './state/redact.js'
 export type { GameView, PendingChoiceView, PlayerView, ZoneView } from './state/redact.js'
 
-export { keywordValue, oracleFrom } from './effects/oracle.js'
+export { hasPassive, keywordValue, oracleFrom } from './effects/oracle.js'
 export type { CardFacts, CardOracle } from './effects/oracle.js'
 export { resolveSelector, selectorCount } from './effects/selector.js'
 export type { SelectorContext } from './effects/selector.js'

@@ -167,6 +167,22 @@ export const triggerConditionSchema = z.discriminatedUnion('kind', [
 
 export type TriggerCondition = z.infer<typeof triggerConditionSchema>
 
+/**
+ * What a passive ability does, for the passives the engine understands.
+ *
+ * A passive is not executed (363): the engine consults it at the moment it
+ * matters. Deliberately a short list, grown as cards need it.
+ */
+export const passiveEffectSchema = z.discriminatedUnion('kind', [
+  /**
+   * "I enter ready." Replaces entering exhausted (143.4) rather than readying
+   * afterwards, so nothing that cares about becoming ready fires (805.6.a).
+   */
+  z.object({ kind: z.literal('enters-ready') }),
+])
+
+export type PassiveEffect = z.infer<typeof passiveEffectSchema>
+
 export const targetSchema = z.union([bindingSchema, selectorSchema])
 
 export type Target = z.infer<typeof targetSchema>
@@ -221,6 +237,18 @@ const leafStepSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('stun'), target: targetSchema }),
   z.object({ op: z.literal('exhaust'), target: targetSchema }),
   z.object({ op: z.literal('ready'), target: targetSchema }),
+
+  /**
+   * Move units by an effect (420, 449) - not a Standard Move, so it costs
+   * nothing and the units stay as ready or exhausted as they were.
+   *
+   * `to: 'base'` is each unit's controller's Base. A unit already there does
+   * not move: a Move needs a different Destination (447).
+   */
+  z.object({ op: z.literal('move'), target: targetSchema, to: z.literal('base') }),
+
+  /** "Units you play this turn enter ready." Expires with the turn (317.2.c). */
+  z.object({ op: z.literal('units-enter-ready'), duration: z.literal('this-turn') }),
 
   /**
    * "Give a unit +2 [M] this turn" - a Might modifier, not a Game Action.

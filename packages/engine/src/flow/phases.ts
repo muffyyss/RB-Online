@@ -191,7 +191,12 @@ function expiration(state: GameState, events: GameEvent[]): GameState {
   }
   let next: GameState = { ...state, objects }
   for (const player of [0, 1] as const) {
-    next = withPlayer(next, player, { runePool: emptyPool() })
+    // 317.2.c-d - player-wide "this turn" effects expire; Rune Pools empty.
+    const { unitsEnterReadyThisTurn: _expired, ...rest } = next.players[player]
+    next = {
+      ...next,
+      players: { ...next.players, [player]: { ...rest, runePool: emptyPool() } },
+    }
   }
   return next
 }

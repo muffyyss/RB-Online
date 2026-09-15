@@ -3,8 +3,7 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-016 — transcribed from the printed card.
  *
- * Entering ready overrides units entering exhausted (143.4), which the engine
- * does not support yet.
+ * Entering ready replaces entering exhausted (143.4); it is not readying.
  */
 export default defineCard({
   id: 'OGS-016',
@@ -20,7 +19,7 @@ export default defineCard({
       kind: 'passive',
       id: 'vanguard-attendant-enter-ready',
       text: 'I enter ready.',
-      notImplemented: 'entering ready is not implemented yet; units enter exhausted (143.4)',
+      effect: { kind: 'enters-ready' },
     },
   ],
   text: 'I enter ready.',

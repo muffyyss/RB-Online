@@ -21,6 +21,9 @@ function engineAbility(ability: Ability): EngineAbility {
     steps: ability.kind === 'passive' ? [] : ability.steps,
     ...(ability.notImplemented === undefined ? {} : { notImplemented: ability.notImplemented }),
   }
+  if (ability.kind === 'passive' && ability.effect) {
+    return { ...base, effect: ability.effect }
+  }
   if (ability.kind === 'triggered') {
     return {
       ...base,

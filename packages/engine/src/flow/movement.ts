@@ -36,8 +36,7 @@ function sameLocation(a: Location | undefined, b: Location): boolean {
  * Is this a legal Standard Move destination for the unit? (144.4)
  *
  * Base to a Battlefield, or a Battlefield back to your own Base. Battlefield to
- * Battlefield needs Ganking (144.4.c.1), which is not implemented yet — so it is
- * refused rather than quietly allowed.
+ * Battlefield needs Ganking (144.4.c.1, 810.1.b).
  */
 function legalDestination(unit: GameObject, to: Location, keywords: readonly string[]): boolean {
   const from = unit.location

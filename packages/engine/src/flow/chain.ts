@@ -14,6 +14,7 @@
  */
 
 import { beginExecution, runExecution } from '../effects/interpreter.js'
+import { hasPassive } from '../effects/oracle.js'
 import type { CardOracle, EngineAbility } from '../effects/oracle.js'
 import type { GameEvent } from '../effects/events.js'
 import type { ChainItem, Execution, GameState, ObjectId, PlayerId } from '../state/game-state.js'
@@ -127,9 +128,13 @@ function resolveItem(
     return drop(state, item.id)
   }
 
-  // Playing a permanent: it enters the board. Units enter exhausted (143.4).
+  // Playing a permanent: it enters the board. Units enter exhausted (143.4),
+  // unless something says they enter ready, which replaces that (805.6).
   if (!item.abilityId && facts && (facts.type === 'unit' || facts.type === 'gear')) {
     const owner = state.players[object.owner]
+    const entersReady =
+      hasPassive(facts, 'enters-ready') ||
+      state.players[item.controller].unitsEnterReadyThisTurn === true
     const withObject: GameState = {
       ...state,
       objects: {
@@ -139,7 +144,7 @@ function resolveItem(
           zone: 'base',
           location: { kind: 'base', player: item.controller },
           controller: item.controller,
-          exhausted: facts.type === 'unit',
+          exhausted: facts.type === 'unit' && !entersReady,
         },
       },
       players: {

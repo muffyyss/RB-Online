@@ -15,8 +15,10 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'confront-effect',
-      steps: [],
-      notImplemented: 'making units enter ready is not implemented',
+      steps: [
+        { op: 'units-enter-ready', duration: 'this-turn' },
+        { op: 'draw', amount: 1 },
+      ],
     },
   ],
   text: '[Action] (Play on your turn or in showdowns.) Units you play this turn enter ready. Draw 1.',

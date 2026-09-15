@@ -109,6 +109,8 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'back-to-back-effect',
       'stupefy-effect',
       'ravenbloom-student-empowered',
+      'confront-effect',
+      'maddened-marauder-recall',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -364,5 +366,41 @@ describe('OGN keywords in combat', () => {
       'bf-0',
     )
     expect(events).toContainEqual({ type: 'damage-dealt', target: 'attacker', amount: 3 })
+  })
+})
+
+describe('OGN units entering ready and moving', () => {
+  it('OGN-129 Confront: units its player plays this turn enter ready, and it draws 1', () => {
+    const start = mainPhase([
+      { id: 'confront', cardId: 'OGN-129', owner: 0, at: 'hand' },
+      { id: 'unit', cardId: 'OGN-219', owner: 0, at: 'hand' },
+    ])
+    const confronted = settle(act(start, { type: 'play-card', player: 0, card: 'confront' }))
+    expect(confronted.players[0].hand).toHaveLength(2) // the unit, and the draw
+    const played = settle(act(confronted, { type: 'play-card', player: 0, card: 'unit' }))
+    expect(played.objects.unit).toMatchObject({ zone: 'base', exhausted: false })
+  })
+
+  it('OGN-191 Maddened Marauder moves a unit from a battlefield to its base when played', () => {
+    const start = mainPhase([
+      { id: 'marauder', cardId: 'OGN-191', owner: 0, at: 'hand' },
+      { id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-0') },
+      { id: 'home', cardId: 'OGN-219', owner: 1, at: base(1) },
+    ])
+    const held = {
+      ...start,
+      battlefields: start.battlefields.map((bf) =>
+        bf.id === 'bf-0' ? { ...bf, controller: 1 as const } : bf,
+      ),
+    }
+    let offered: readonly string[] = []
+    const played = act(held, { type: 'play-card', player: 0, card: 'marauder' })
+    const after = settle(played, (candidates) => {
+      offered = candidates
+      return ['foe']
+    })
+    expect(offered).toEqual(['foe'])
+    expect(after.objects.foe).toMatchObject({ zone: 'base', location: base(1) })
+    expect(after.battlefields.find((bf) => bf.id === 'bf-0')?.controller).toBeUndefined()
   })
 })

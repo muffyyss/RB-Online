@@ -134,6 +134,8 @@ export interface PlayerState {
    * turn (471.1.b.1), so this has to be tracked rather than recomputed.
    */
   readonly scoredThisTurn: readonly ObjectId[]
+  /** Units this player plays enter ready, for the rest of the turn (317.2.c). */
+  readonly unitsEnterReadyThisTurn?: boolean
 }
 
 /**

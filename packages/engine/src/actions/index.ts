@@ -145,6 +145,35 @@ function withTriggers(state: GameState, events: GameEvent[], oracle: CardOracle)
   return drained.state
 }
 
+interface Advanced {
+  readonly state: GameState
+  readonly events: readonly GameEvent[]
+}
+
+/**
+ * Carry on once the Chain has done what it can.
+ *
+ * If it emptied, the game has moved from a Closed to an Open State, which calls
+ * for a Cleanup (319.1): a spell may have moved or killed the last unit at a
+ * Battlefield, or brought opposing units together. Then the turn continues.
+ * If the Chain still holds items, or a choice is pending, nothing happens yet.
+ */
+function afterChain(drained: Advanced, oracle: CardOracle): Advanced {
+  if (drained.state.chain.length > 0 || drained.state.pendingChoice !== null) return drained
+  // Only the Cleanup's own events can trigger here; the drained ones already had their chance.
+  const cleanup: GameEvent[] = []
+  const settled = checkWin(
+    withTriggers(settleBoard(drained.state, oracle, cleanup), cleanup, oracle),
+    cleanup,
+  )
+  const events = [...drained.events, ...cleanup]
+  if (settled.chain.length > 0 || settled.pendingChoice !== null || settled.winner !== null) {
+    return { state: settled, events }
+  }
+  const flowed = advanceFlow(settled, oracle)
+  return { state: flowed.state, events: [...events, ...flowed.events] }
+}
+
 export type ActionResult =
   | { readonly ok: true; readonly state: GameState; readonly events: readonly GameEvent[] }
   | { readonly ok: false; readonly error: RuleViolation }
@@ -217,15 +246,8 @@ export function applyAction(
         { ...suspended, bindings: { ...suspended.bindings, [pending.binding]: action.chosen } },
         oracle,
       )
-      const advanced =
-        resumed.state.chain.length === 0 && resumed.state.pendingChoice === null
-          ? advanceFlow(resumed.state, oracle)
-          : { state: resumed.state, events: [] as readonly GameEvent[] }
-      return {
-        ok: true,
-        state: advanced.state,
-        events: [...resumed.events, ...advanced.events],
-      }
+      const advanced = afterChain(resumed, oracle)
+      return { ok: true, state: advanced.state, events: advanced.events }
     }
 
     case 'play-card': {
@@ -280,11 +302,8 @@ export function applyAction(
 
       const queued = addToChain(moved, { source: action.card, controller: action.player })
       const drained = advanceChain({ ...queued, priority: null }, oracle)
-      const after =
-        drained.state.chain.length === 0 && drained.state.pendingChoice === null
-          ? advanceFlow(drained.state, oracle)
-          : { state: drained.state, events: [] as readonly GameEvent[] }
-      return { ok: true, state: after.state, events: [...drained.events, ...after.events] }
+      const after = afterChain(drained, oracle)
+      return { ok: true, state: after.state, events: after.events }
     }
 
     case 'activate-ability': {
@@ -352,11 +371,8 @@ export function applyAction(
         abilityId: action.abilityId,
       })
       const drained = advanceChain({ ...queued, priority: null }, oracle)
-      const after =
-        drained.state.chain.length === 0 && drained.state.pendingChoice === null
-          ? advanceFlow(drained.state, oracle)
-          : { state: drained.state, events: [] as readonly GameEvent[] }
-      return { ok: true, state: after.state, events: [...drained.events, ...after.events] }
+      const after = afterChain(drained, oracle)
+      return { ok: true, state: after.state, events: after.events }
     }
 
     case 'mulligan': {
@@ -449,15 +465,8 @@ export function applyAction(
         const passed = passOnChain(state)
         const drained = advanceChain(passed, oracle)
         // Chain emptied: hand control back to the phase machine.
-        const after =
-          drained.state.chain.length === 0 && drained.state.pendingChoice === null
-            ? advanceFlow(drained.state, oracle)
-            : { state: drained.state, events: [] as readonly GameEvent[] }
-        return {
-          ok: true,
-          state: after.state,
-          events: [...drained.events, ...after.events],
-        }
+        const after = afterChain(drained, oracle)
+        return { ok: true, state: after.state, events: after.events }
       }
 
       // An empty Chain in the Main Phase: passing ends the turn (316.9).

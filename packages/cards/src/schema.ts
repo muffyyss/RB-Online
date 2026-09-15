@@ -19,6 +19,7 @@ import {
   effectStepSchema,
   isImplemented,
   isPermanentType,
+  passiveEffectSchema,
   takesValue,
   triggerConditionSchema,
 } from '@rb/engine'
@@ -125,6 +126,8 @@ export const abilitySchema = z.discriminatedUnion('kind', [
     kind: z.literal('passive'),
     id: z.string().min(1),
     text: z.string().min(1),
+    /** What it does, for a passive the engine understands. */
+    effect: passiveEffectSchema.optional(),
     notImplemented,
   }),
   /**
@@ -265,6 +268,16 @@ export const cardDefinitionSchema = z
       if ('steps' in ability && ability.steps.length === 0 && !ability.notImplemented) {
         fail(
           `ability "${ability.id}" has no steps; write them, or mark it notImplemented`,
+          'abilities',
+        )
+      }
+    }
+
+    // A passive with no effect the engine understands would do nothing.
+    for (const ability of card.abilities ?? []) {
+      if (ability.kind === 'passive' && !ability.effect && !ability.notImplemented) {
+        fail(
+          `passive "${ability.id}" has no effect; give it one, or mark it notImplemented`,
           'abilities',
         )
       }

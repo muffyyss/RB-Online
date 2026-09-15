@@ -18,8 +18,10 @@ export default defineCard({
       kind: 'triggered',
       id: 'maddened-marauder-recall',
       on: 'played',
-      steps: [],
-      notImplemented: 'the Move action (420) has no step yet',
+      steps: [
+        { op: 'choose', as: '$unit', from: { kind: 'unit', at: 'any-battlefield' } },
+        { op: 'move', target: '$unit', to: 'base' },
+      ],
     },
   ],
   text: '[Tank] (I must be assigned combat damage first.) When you play me, move a unit from a battlefield to its base.',

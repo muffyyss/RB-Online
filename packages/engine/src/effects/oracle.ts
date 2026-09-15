@@ -13,7 +13,7 @@ import type { Cost } from '../model/cost.js'
 import type { Domain } from '../model/domain.js'
 import type { Keyword } from '../model/keyword.js'
 import type { CardId } from '../state/game-state.js'
-import type { EffectStep, TriggerCondition } from './steps.js'
+import type { EffectStep, PassiveEffect, TriggerCondition } from './steps.js'
 
 /**
  * An ability as the engine executes it.
@@ -35,6 +35,8 @@ export interface EngineAbility {
    * is not met, the ability does not trigger at all.
    */
   readonly condition?: TriggerCondition
+  /** What a passive does, when it is one the engine understands. */
+  readonly effect?: PassiveEffect
   readonly steps: readonly EffectStep[]
   /** Resource cost of activating it, if any. */
   readonly cost?: Cost
@@ -79,6 +81,14 @@ export interface CardFacts {
    */
   readonly keywordValues?: Readonly<Partial<Record<Keyword, number>>>
   readonly abilities: readonly EngineAbility[]
+}
+
+/** Whether a card has a working passive with this effect. */
+export function hasPassive(facts: CardFacts, kind: PassiveEffect['kind']): boolean {
+  return facts.abilities.some(
+    (ability) =>
+      ability.kind === 'passive' && ability.effect?.kind === kind && !ability.notImplemented,
+  )
 }
 
 /** A keyword's value on a card: 0 without it, 1 if printed without a number. */

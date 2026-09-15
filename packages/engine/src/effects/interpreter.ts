@@ -350,6 +350,25 @@ function runStep(
       return { state: next }
     }
 
+    case 'move': {
+      let next = state
+      for (const id of resolve(step.target)) {
+        const unit = next.objects[id]
+        if (!unit || unit.location?.kind !== 'battlefield') continue
+        if (oracle.facts(unit.cardId)?.type !== 'unit') continue
+        const to = { kind: 'base', player: unit.controller } as const
+        next = withObject(next, id, { zone: 'base', location: to })
+        events.push({ type: 'moved', unit: id, to })
+      }
+      // 453 - the Cleanup this calls for runs once the Chain allows it (321.1).
+      return { state: next }
+    }
+
+    case 'units-enter-ready': {
+      events.push({ type: 'units-enter-ready', player: self })
+      return { state: withPlayer(state, self, { unitsEnterReadyThisTurn: true }) }
+    }
+
     case 'exhaust': {
       let next = state
       for (const id of resolve(step.target)) {
