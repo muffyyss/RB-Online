@@ -44,11 +44,13 @@ export {
   isImplementedOp,
   selectorSchema,
   targetSchema,
+  triggerConditionSchema,
 } from './effects/steps.js'
 export type {
   Amount,
   ControlOp,
   EffectStep,
+  TriggerCondition,
   GameActionName,
   Selector,
   Target,
@@ -167,3 +169,6 @@ export {
   parsePresetFile,
 } from './deck/preset.js'
 export type { DeckCodeError, DeckCodeResult, DeckPreset, PresetFile } from './deck/preset.js'
+
+export { enqueueTriggers, findTriggers } from './flow/triggers.js'
+export type { TriggerHit } from './flow/triggers.js'

@@ -130,9 +130,30 @@ export const selectorSchema = z.object({
     .optional(),
   /** How many to select. Absent means exactly one. */
   count: z.number().int().positive().optional(),
+  /** Only exhausted objects (true) or only ready ones (false). Absent means either. */
+  exhausted: z.boolean().optional(),
+  /** "Another": never the ability's own source. */
+  other: z.boolean().optional(),
 })
 
 export type Selector = z.infer<typeof selectorSchema>
+
+/**
+ * Conditions a triggered ability can carry beyond its event (383.2.a.1).
+ *
+ * Deliberately a short list, grown as cards need it.
+ */
+export const triggerConditionSchema = z.discriminatedUnion('kind', [
+  /** "When you play a spell that costs [N] or more" - the printed Energy cost. */
+  z.object({ kind: z.literal('spell-cost-at-least'), energy: z.number().int().nonnegative() }),
+  /** "If you have N+ units at that battlefield" - the Battlefield the event names. */
+  z.object({
+    kind: z.literal('units-at-battlefield-at-least'),
+    count: z.number().int().positive(),
+  }),
+])
+
+export type TriggerCondition = z.infer<typeof triggerConditionSchema>
 
 export const targetSchema = z.union([bindingSchema, selectorSchema])
 

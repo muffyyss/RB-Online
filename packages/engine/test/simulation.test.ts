@@ -154,7 +154,9 @@ function playGame(seed: number, maxActions = 3000): Outcome {
   return { winner: state.winner, actions }
 }
 
-describe('random play', () => {
+// Hundreds of whole games: quick alone, but the full suite runs files in parallel,
+// so the default five seconds is not enough headroom.
+describe('random play', { timeout: 60_000 }, () => {
   it('plays 150 games to completion without a single failure', () => {
     const failures: string[] = []
     for (let seed = 1; seed <= 150; seed += 1) {

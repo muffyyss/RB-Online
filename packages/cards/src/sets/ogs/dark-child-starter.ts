@@ -23,10 +23,11 @@ export default defineCard({
       kind: 'triggered',
       id: 'dark-child-ready-runes',
       on: 'end-of-turn',
-      steps: [{ op: 'ready', target: { kind: 'rune', controller: 'self', count: 2 } }],
-      // The steps are exact, but nothing fires triggered abilities yet. Marked
-      // so the card is not mistaken for one that works.
-      notImplemented: 'triggered abilities are not dispatched by the engine yet',
+      // Readying a rune that is already ready does nothing, so the two chosen are
+      // always exhausted ones when there are any: the best choice, made for the player.
+      steps: [
+        { op: 'ready', target: { kind: 'rune', controller: 'self', exhausted: true, count: 2 } },
+      ],
     },
   ],
   text: 'At the end of your turn, ready 2 runes.',

@@ -294,6 +294,31 @@ function Hand(props: { session: MatchSession; view: GameView }) {
   )
 }
 
+function Chain({ session, view }: { session: MatchSession; view: GameView }) {
+  if (view.chain.length === 0) return null
+  return (
+    <div className="card chain">
+      <span className="label">Chain — the top resolves first</span>
+      <ol className="chain-items">
+        {[...view.chain].reverse().map((item) => {
+          const card = getCard(view.objects[item.source]?.cardId ?? '')
+          return (
+            <li key={item.id}>
+              <strong>{nameOf(view, item.source)}</strong>
+              <span className="muted small">
+                {' '}
+                · {item.controller === session.seat ? 'yours' : 'theirs'}
+                {item.pending ? ' · pending' : ''}
+              </span>
+              {card?.text && <div className="small hand-text">{card.text}</div>}
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
 function Ended({ session }: { session: MatchSession }) {
   const dismiss = useStore((s) => s.dismissMatch)
   if (!session.ended) return null
@@ -395,6 +420,7 @@ export function Match({ session }: { session: MatchSession }) {
         </div>
       )}
 
+      <Chain session={session} view={view} />
       <PlayerStrip session={session} view={view} player={them} />
       <Base session={session} view={view} player={them} />
 

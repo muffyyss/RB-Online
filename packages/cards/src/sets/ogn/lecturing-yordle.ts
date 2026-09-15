@@ -24,7 +24,6 @@ export default defineCard({
       id: 'lecturing-yordle-draw',
       on: 'played',
       steps: [{ op: 'draw', amount: 1 }],
-      notImplemented: 'triggered abilities are not dispatched by the engine yet',
     },
   ],
   text: '[Tank] (I must be assigned combat damage first.) When you play me, draw 1.',

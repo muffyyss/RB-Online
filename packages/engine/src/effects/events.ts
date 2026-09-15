@@ -60,6 +60,21 @@ export type GameEvent =
       readonly result: 'attacker' | 'defender' | 'none'
     }
 
+  // --- trigger conditions (383) ---
+  /** A permanent was played and has entered the board (383.4.a.2). */
+  | { readonly type: 'played'; readonly player: PlayerId; readonly card: ObjectId }
+  /** A spell was played: it has finalized on the Chain (419). */
+  | { readonly type: 'spell-played'; readonly player: PlayerId; readonly card: ObjectId }
+  | { readonly type: 'turn-began'; readonly player: PlayerId }
+  | { readonly type: 'turn-ending'; readonly player: PlayerId }
+  /** A Battlefield was Scored (469), by Conquer or Hold. */
+  | {
+      readonly type: 'scored'
+      readonly player: PlayerId
+      readonly battlefield: ObjectId
+      readonly method: 'conquer' | 'hold'
+    }
+
   // --- scoring and endgame ---
   | { readonly type: 'points-gained'; readonly player: PlayerId; readonly amount: number }
   | { readonly type: 'burned-out'; readonly player: PlayerId; readonly gavePointTo: PlayerId }

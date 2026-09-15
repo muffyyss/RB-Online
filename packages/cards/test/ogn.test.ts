@@ -6,6 +6,7 @@ import type { GameState } from '@rb/engine'
 import { getCard } from '../src/registry.js'
 import { OGN_CARDS } from '../src/sets/ogn/index.js'
 import { makeState } from '../../engine/test/support/state.js'
+import { act, base, field, mainPhase, settle } from './support/game.js'
 import { board, resolveSpell, testOracle } from './support/play.js'
 
 /**
@@ -101,6 +102,9 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'body-rune-power',
       'chaos-rune-power',
       'order-rune-power',
+      'lecturing-yordle-draw',
+      'crackshot-corsair-shot',
+      'first-mate-ready',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -204,5 +208,57 @@ describe('Basic Runes (164.2)', () => {
     if (!result.ok) return
     expect(result.state.players[0].runePool.power).toEqual({ [domain]: 1 })
     expect(result.state.players[0].runeDeck).toEqual(['rune'])
+  })
+})
+
+describe('OGN triggered abilities in play', () => {
+  it('OGN-087 Lecturing Yordle draws 1 when played', () => {
+    const played = act(mainPhase([{ id: 'yordle', cardId: 'OGN-087', owner: 0, at: 'hand' }]), {
+      type: 'play-card',
+      player: 0,
+      card: 'yordle',
+    })
+    expect(played.chain[0]).toMatchObject({ abilityId: 'lecturing-yordle-draw' })
+    expect(settle(played).players[0].hand).toHaveLength(1)
+  })
+
+  it('OGN-132 First Mate readies another unit, never itself', () => {
+    const start = mainPhase([
+      { id: 'mate', cardId: 'OGN-132', owner: 0, at: 'hand' },
+      { id: 'tired', cardId: 'OGN-219', owner: 0, at: base(0), exhausted: true },
+    ])
+    const played = act(start, { type: 'play-card', player: 0, card: 'mate' })
+    let offered: readonly string[] = []
+    const after = settle(played, (candidates) => {
+      offered = candidates
+      return ['tired']
+    })
+    expect(offered).toContain('tired')
+    expect(offered).not.toContain('mate')
+    expect(after.objects.tired?.exhausted).toBe(false)
+  })
+
+  it('OGN-130 Crackshot Corsair deals 1 to an enemy unit there when it attacks', () => {
+    const start = mainPhase([
+      { id: 'corsair', cardId: 'OGN-130', owner: 0, at: base(0) },
+      { id: 'here', cardId: 'OGN-088', owner: 1, at: field('bf-0') }, // 8 Might
+      { id: 'elsewhere', cardId: 'OGN-088', owner: 1, at: field('bf-1') },
+    ])
+    const moved = act(start, {
+      type: 'move',
+      player: 0,
+      units: ['corsair'],
+      to: { kind: 'battlefield', id: 'bf-0' },
+    })
+    expect(moved.showdown?.combat).toBe(true)
+    expect(moved.chain[0]).toMatchObject({ abilityId: 'crackshot-corsair-shot' })
+
+    let offered: readonly string[] = []
+    const shot = settle(moved, (candidates) => {
+      offered = candidates
+      return candidates.slice(0, 1)
+    })
+    expect(offered).toEqual(['here'])
+    expect(shot.objects.here?.damage).toBe(1)
   })
 })

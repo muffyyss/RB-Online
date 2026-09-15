@@ -17,9 +17,10 @@ export default defineCard({
       kind: 'triggered',
       id: 'first-mate-ready',
       on: 'played',
-      steps: [],
-      notImplemented:
-        'triggered abilities are not dispatched by the engine yet, and "another unit" cannot exclude the source yet',
+      steps: [
+        { op: 'choose', as: '$unit', from: { kind: 'unit', other: true } },
+        { op: 'ready', target: '$unit' },
+      ],
     },
   ],
   text: 'When you play me, ready another unit.',

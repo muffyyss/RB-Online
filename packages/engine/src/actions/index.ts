@@ -18,6 +18,7 @@ import { closeCombat } from '../flow/combat.js'
 import { moveRefusal, performMove } from '../flow/movement.js'
 import { MULLIGAN_LIMIT, beginPlay, performMulligan } from '../flow/setup.js'
 import { advanceFlow, checkWin, endMainPhase, VICTORY_SCORE } from '../flow/phases.js'
+import { enqueueTriggers } from '../flow/triggers.js'
 import type { GameObject, GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
 
@@ -129,6 +130,21 @@ function recycleFromBoard(state: GameState, id: ObjectId, oracle: CardOracle): G
   return { ...state, objects: { ...state.objects, [id]: recycled }, players }
 }
 
+/**
+ * Put any triggers these events caused on the Chain, and start draining it.
+ *
+ * For board changes that happen outside the Chain: a Move, a Cleanup's Conquer,
+ * a Combat beginning. New events from resolving the triggers are appended.
+ */
+function withTriggers(state: GameState, events: GameEvent[], oracle: CardOracle): GameState {
+  const queued = enqueueTriggers(state, events, oracle)
+  if (queued.chain.length === state.chain.length) return queued
+  // The newest item's controller gets Priority first (337.4).
+  const drained = advanceChain({ ...queued, priority: null }, oracle)
+  events.push(...drained.events)
+  return drained.state
+}
+
 export type ActionResult =
   | { readonly ok: true; readonly state: GameState; readonly events: readonly GameEvent[] }
   | { readonly ok: false; readonly error: RuleViolation }
@@ -203,7 +219,7 @@ export function applyAction(
       )
       const advanced =
         resumed.state.chain.length === 0 && resumed.state.pendingChoice === null
-          ? advanceFlow(resumed.state)
+          ? advanceFlow(resumed.state, oracle)
           : { state: resumed.state, events: [] as readonly GameEvent[] }
       return {
         ok: true,
@@ -266,7 +282,7 @@ export function applyAction(
       const drained = advanceChain({ ...queued, priority: null }, oracle)
       const after =
         drained.state.chain.length === 0 && drained.state.pendingChoice === null
-          ? advanceFlow(drained.state)
+          ? advanceFlow(drained.state, oracle)
           : { state: drained.state, events: [] as readonly GameEvent[] }
       return { ok: true, state: after.state, events: [...drained.events, ...after.events] }
     }
@@ -338,7 +354,7 @@ export function applyAction(
       const drained = advanceChain({ ...queued, priority: null }, oracle)
       const after =
         drained.state.chain.length === 0 && drained.state.pendingChoice === null
-          ? advanceFlow(drained.state)
+          ? advanceFlow(drained.state, oracle)
           : { state: drained.state, events: [] as readonly GameEvent[] }
       return { ok: true, state: after.state, events: [...drained.events, ...after.events] }
     }
@@ -366,7 +382,7 @@ export function applyAction(
           events,
         }
       }
-      const started = advanceFlow(beginPlay(done, state.turnPlayer))
+      const started = advanceFlow(beginPlay(done, state.turnPlayer), oracle)
       return { ok: true, state: started.state, events: [...events, ...started.events] }
     }
 
@@ -383,7 +399,10 @@ export function applyAction(
       const moved = performMove(state, action.units, action.to, events)
       // 453 - a Cleanup follows a completed Move; that is where Contested and
       // Control are settled, and where a Conquer scores.
-      const cleaned = checkWin(settleBoard(moved, oracle, events), events)
+      const cleaned = checkWin(
+        withTriggers(settleBoard(moved, oracle, events), events, oracle),
+        events,
+      )
       return { ok: true, state: cleaned, events }
     }
 
@@ -414,11 +433,14 @@ export function applyAction(
         const events: GameEvent[] = []
         // 465.3 - no window between damage and resolution.
         const fought = closeCombat(state, oracle, events)
-        const settled = checkWin(settleBoard(fought, oracle, events), events)
+        const settled = checkWin(
+          withTriggers(settleBoard(fought, oracle, events), events, oracle),
+          events,
+        )
         const after =
-          settled.showdown || settled.winner !== null
+          settled.showdown || settled.winner !== null || settled.chain.length > 0
             ? { state: settled, events: [] as readonly GameEvent[] }
-            : advanceFlow(settled)
+            : advanceFlow(settled, oracle)
         return { ok: true, state: after.state, events: [...events, ...after.events] }
       }
 
@@ -429,7 +451,7 @@ export function applyAction(
         // Chain emptied: hand control back to the phase machine.
         const after =
           drained.state.chain.length === 0 && drained.state.pendingChoice === null
-            ? advanceFlow(drained.state)
+            ? advanceFlow(drained.state, oracle)
             : { state: drained.state, events: [] as readonly GameEvent[] }
         return {
           ok: true,
@@ -441,7 +463,7 @@ export function applyAction(
       // An empty Chain in the Main Phase: passing ends the turn (316.9).
       const events: GameEvent[] = []
       const ended = endMainPhase(state)
-      const advanced = advanceFlow(checkWin(ended, events))
+      const advanced = advanceFlow(checkWin(ended, events), oracle)
       return { ok: true, state: advanced.state, events: [...events, ...advanced.events] }
     }
   }

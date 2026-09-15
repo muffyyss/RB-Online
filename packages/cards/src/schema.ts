@@ -19,6 +19,7 @@ import {
   effectStepSchema,
   isImplemented,
   isPermanentType,
+  triggerConditionSchema,
 } from '@rb/engine'
 import { z } from 'zod'
 
@@ -54,7 +55,8 @@ const stepsSchema = z.array(effectStepSchema)
  * When a triggered ability fires (382).
  *
  * Deliberately a short list. Each entry needs interpreter support and a test, so
- * it grows as the OGS set demands rather than being guessed at up front.
+ * it grows as the OGS set demands rather than being guessed at up front. Dispatch lives in
+ * the engine, in flow/triggers.ts.
  */
 export const TRIGGERS = [
   /**
@@ -136,6 +138,8 @@ export const abilitySchema = z.discriminatedUnion('kind', [
     kind: z.literal('triggered'),
     id: z.string().min(1),
     on: z.enum(TRIGGERS),
+    /** Anything else the Condition requires, e.g. "a spell that costs 5 or more". */
+    condition: triggerConditionSchema.optional(),
     steps: stepsSchema,
     notImplemented,
   }),

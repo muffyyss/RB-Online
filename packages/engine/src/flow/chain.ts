@@ -18,6 +18,7 @@ import type { CardOracle, EngineAbility } from '../effects/oracle.js'
 import type { GameEvent } from '../effects/events.js'
 import type { ChainItem, Execution, GameState, ObjectId, PlayerId } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
+import { enqueueTriggers } from './triggers.js'
 
 /** Players in a Duel. Passing this many times in a row resolves the top item. */
 const PLAYER_COUNT = 2
@@ -87,6 +88,11 @@ function resolvesImmediately(state: GameState, oracle: CardOracle, item: ChainIt
   return ability.steps.some((step) => step.op === 'add')
 }
 
+function isSpell(state: GameState, oracle: CardOracle, item: ChainItem): boolean {
+  const object = state.objects[item.source]
+  return object !== undefined && oracle.facts(object.cardId)?.type === 'spell'
+}
+
 /** Remove an item from the Chain. */
 function drop(state: GameState, id: ObjectId): GameState {
   return { ...state, chain: state.chain.filter((c) => c.id !== id) }
@@ -145,6 +151,8 @@ function resolveItem(
         },
       },
     }
+    // 383.4.a.2 - Play Effects trigger once the permanent is on the board.
+    events.push({ type: 'played', player: item.controller, card: item.source })
     return drop(withObject, item.id)
   }
 
@@ -198,15 +206,22 @@ export function advanceChain(state: GameState, oracle: CardOracle): ChainResult 
     // --- Step 1: Finalize (337) - oldest Pending item first.
     const pending = current.chain.find((item) => item.pending)
     if (pending) {
+      const mark = events.length
       const finalized: ChainItem = { ...pending, pending: false }
       current = {
         ...current,
         chain: current.chain.map((item) => (item.id === pending.id ? finalized : item)),
       }
+      // A spell counts as played once it is finalized on the Chain (419).
+      if (!finalized.abilityId && isSpell(current, oracle, finalized)) {
+        events.push({ type: 'spell-played', player: finalized.controller, card: finalized.source })
+      }
       // 337.2 - permanents and resource abilities resolve without priority.
       if (resolvesImmediately(current, oracle, finalized)) {
         current = resolveItem(current, oracle, finalized, events)
       }
+      // Anything that just happened may have met a trigger's Condition (383.3).
+      current = enqueueTriggers(current, events.slice(mark), oracle)
       continue
     }
 
@@ -220,8 +235,10 @@ export function advanceChain(state: GameState, oracle: CardOracle): ChainResult 
     if (current.consecutivePasses >= PLAYER_COUNT) {
       const newest = current.chain[current.chain.length - 1]
       if (!newest) break
+      const mark = events.length
       current = { ...current, consecutivePasses: 0 }
       current = resolveItem(current, oracle, newest, events)
+      current = enqueueTriggers(current, events.slice(mark), oracle)
       continue
     }
 

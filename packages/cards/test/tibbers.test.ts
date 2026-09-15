@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { beginExecution } from '@rb/engine'
-
 import card from '../src/sets/ogs/tibbers.js'
-import { board, testOracle } from './support/play.js'
-import { expectRecordedButNotRunnable } from './support/recorded.js'
+import { act, base, field, mainPhase, settle } from './support/game.js'
 
 describe('OGS-018 Tibbers', () => {
   it('matches the printed card', () => {
@@ -20,26 +17,22 @@ describe('OGS-018 Tibbers', () => {
     })
   })
 
-  it('records its play trigger, marked as waiting on trigger dispatch', () => {
-    expectRecordedButNotRunnable(card, 'tibbers-bear-hug', { kind: 'triggered', on: 'played' })
-  })
-
-  it('has steps that already hit every unit at every battlefield, and none in bases', () => {
-    // The trigger does not fire yet, but its steps are exact: run them directly
-    // so they are known to be right when dispatch arrives.
-    const ability = card.abilities?.find((a) => a.id === 'tibbers-bear-hug')
-    const scene = board([
-      { id: 'enemy', cardId: 'OGS-001', owner: 1, at: 'bf-0' },
-      { id: 'mine', cardId: 'OGS-014', owner: 0, at: 'bf-1' },
-      { id: 'safe', cardId: 'OGS-014', owner: 1, at: 'base' },
+  it('when played, deals 3 to every unit at every battlefield, and spares units in base', () => {
+    const start = mainPhase([
+      { id: 'tibbers', cardId: 'OGS-018', owner: 0, at: 'hand' },
+      { id: 'enemy', cardId: 'OGN-013', owner: 1, at: field('bf-0') }, // Pouty Poro, 2 Might
+      { id: 'mine', cardId: 'OGN-088', owner: 0, at: field('bf-1') }, // Mega-Mech, 8 Might
+      { id: 'safe', cardId: 'OGN-013', owner: 1, at: base(1) },
     ])
-    const result = beginExecution(
-      scene,
-      { source: 'mine', controller: 0, steps: ability && 'steps' in ability ? ability.steps : [] },
-      testOracle,
-    )
-    expect(result.state.objects.enemy?.damage).toBe(3)
-    expect(result.state.objects.mine?.zone).toBe('trash') // friendly fire: all units
-    expect(result.state.objects.safe?.damage).toBe(0)
+    const played = act(start, { type: 'play-card', player: 0, card: 'tibbers' })
+    // The unit is on the board first; the blast waits on the Chain (383.4.a.2).
+    expect(played.objects.tibbers?.zone).toBe('base')
+    expect(played.chain[0]).toMatchObject({ abilityId: 'tibbers-bear-hug' })
+
+    const after = settle(played)
+    expect(after.objects.enemy?.zone).toBe('trash')
+    expect(after.objects.mine?.damage).toBe(3)
+    expect(after.objects.safe?.damage).toBe(0)
+    expect(after.objects.tibbers?.damage).toBe(0)
   })
 })

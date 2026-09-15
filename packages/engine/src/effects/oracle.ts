@@ -13,7 +13,7 @@ import type { Cost } from '../model/cost.js'
 import type { Domain } from '../model/domain.js'
 import type { Keyword } from '../model/keyword.js'
 import type { CardId } from '../state/game-state.js'
-import type { EffectStep } from './steps.js'
+import type { EffectStep, TriggerCondition } from './steps.js'
 
 /**
  * An ability as the engine executes it.
@@ -29,6 +29,12 @@ export interface EngineAbility {
   readonly kind: 'passive' | 'spell' | 'activated' | 'triggered'
   /** Event that fires a triggered ability (382). */
   readonly on?: string
+  /**
+   * Extra requirement written into a trigger's Condition, e.g. "a spell that
+   * costs 5 or more". Part of the Condition, not the Effect (383.2.a.1): if it
+   * is not met, the ability does not trigger at all.
+   */
+  readonly condition?: TriggerCondition
   readonly steps: readonly EffectStep[]
   /** Resource cost of activating it, if any. */
   readonly cost?: Cost

@@ -17,8 +17,10 @@ export default defineCard({
       kind: 'triggered',
       id: 'crackshot-corsair-shot',
       on: 'attack',
-      steps: [],
-      notImplemented: 'triggered abilities are not dispatched by the engine yet',
+      steps: [
+        { op: 'choose', as: '$target', from: { kind: 'unit', controller: 'opponent', at: 'here' } },
+        { op: 'deal', amount: 1, target: '$target' },
+      ],
     },
   ],
   text: 'When I attack, deal 1 to an enemy unit here.',

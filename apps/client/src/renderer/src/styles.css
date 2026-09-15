@@ -774,3 +774,15 @@ textarea {
   text-align: center;
   min-width: 320px;
 }
+
+.chain {
+  border-color: rgba(201, 165, 92, 0.7);
+  padding: 10px 14px;
+}
+.chain-items {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}

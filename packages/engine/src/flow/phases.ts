@@ -12,6 +12,9 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
+import type { CardOracle } from '../effects/oracle.js'
+import { advanceChain } from './chain.js'
+import { enqueueTriggers } from './triggers.js'
 import { emptyPool } from '../model/cost.js'
 import { SeededRng } from '../rng.js'
 import type {
@@ -98,6 +101,9 @@ export function score(
   if (p.scoredThisTurn.includes(battlefieldId)) return state // 470
 
   const scoredThisTurn = [...p.scoredThisTurn, battlefieldId]
+  // 383.4.c.2.c, 383.4.d.2.c - Conquer and Hold effects trigger even when the
+  // point itself is withheld, so the Score is announced before the Final Point check.
+  events.push({ type: 'scored', player, battlefield: battlefieldId, method })
 
   // 471.1.b - a Conquer that would reach the Victory Score only scores if the
   // player has Scored every Battlefield this turn; otherwise they draw instead.
@@ -254,9 +260,12 @@ function runStepTask(state: GameState, events: GameEvent[]): GameState {
       // Setup, not a turn step - advanceFlow never reaches it (117).
       return state
     case 'beginning':
+      // 315.2.a - "at the start of your turn" effects trigger here.
+      events.push({ type: 'turn-began', player: state.turnPlayer })
+      return state
     case 'ending':
-      // Windows for start/end-of-phase effects. Nothing to do until triggered
-      // abilities land.
+      // 317.1 - "at the end of your turn" effects trigger here.
+      events.push({ type: 'turn-ending', player: state.turnPlayer })
       return state
   }
 }
@@ -329,10 +338,27 @@ export interface AdvanceResult {
  * This is the "Handle Outstanding Tasks" half of HOT FEPR (334): tasks run to
  * completion, and only then does anyone get to act. A step that grants Priority
  * stops the loop; everything else runs its task and moves on.
+ *
+ * With card data supplied, a step task that meets a trigger's Condition ("at the
+ * end of your turn", a Hold) puts the ability on the Chain and stops here, so
+ * players get Priority to resolve it. Once the Chain empties, advancing again
+ * picks up after that step, because its task is marked done. Without card data
+ * (some tests drive the turn structure alone) nothing triggers.
  */
-export function advanceFlow(state: GameState): AdvanceResult {
+export function advanceFlow(state: GameState, oracle?: CardOracle): AdvanceResult {
   const events: GameEvent[] = []
   let current = state
+
+  /** Put triggers from a task on the Chain. True if the flow must stop for them. */
+  const triggered = (mark: number): boolean => {
+    if (!oracle) return false
+    current = enqueueTriggers(current, events.slice(mark), oracle)
+    if (current.chain.length === 0) return false
+    const drained = advanceChain(current, oracle)
+    events.push(...drained.events)
+    current = drained.state
+    return current.chain.length > 0 || current.pendingChoice !== null
+  }
 
   for (let guard = 0; guard < 1000; guard += 1) {
     if (current.winner !== null) break
@@ -347,8 +373,10 @@ export function advanceFlow(state: GameState): AdvanceResult {
     // The Main Phase is where the Turn Player acts; hand them Priority and wait.
     if (def.grantsPriority) {
       if (!current.stepTaskDone) {
+        const mark = events.length
         current = { ...runStepTask(current, events), stepTaskDone: true }
         current = checkWin(current, events)
+        if (triggered(mark)) break
       }
       if (current.priority === null) {
         current = { ...current, priority: current.turnPlayer }
@@ -357,9 +385,11 @@ export function advanceFlow(state: GameState): AdvanceResult {
     }
 
     if (!current.stepTaskDone) {
+      const mark = events.length
       current = { ...runStepTask(current, events), stepTaskDone: true }
       current = checkWin(current, events)
       if (current.winner !== null) break
+      if (triggered(mark)) break
     }
 
     const nextDef = TURN_STEPS[index + 1]

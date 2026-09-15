@@ -131,6 +131,8 @@ export function resolveSelector(
       if (!matchesController(object, selector, ctx)) return false
       if (!matchesLocation(object, selector, ctx, state)) return false
       if (!matchesMight(object, selector, ctx.oracle)) return false
+      if (selector.exhausted !== undefined && object.exhausted !== selector.exhausted) return false
+      if (selector.other && object.id === ctx.source) return false
       if (selector.tag) {
         const tags = ctx.oracle.facts(object.cardId)?.tags ?? []
         if (!tags.includes(selector.tag)) return false
