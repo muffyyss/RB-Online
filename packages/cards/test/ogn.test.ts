@@ -123,6 +123,8 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'wielder-of-water-alone',
       'trifarian-war-camp-might',
       'void-gate-bonus-damage',
+      'faithful-manufactor-recruit',
+      'noxian-drummer-recruit',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -679,5 +681,34 @@ describe('OGN passives', () => {
       )
     expect(incinerate('bf-0').objects.foe?.damage).toBe(3)
     expect(incinerate('bf-1').objects.foe?.damage).toBe(2)
+  })
+})
+
+describe('OGN cards that play tokens', () => {
+  const recruits = (state: GameState) =>
+    Object.values(state.objects).filter((object) => object.cardId === 'TOK-001')
+
+  it('OGN-211 Faithful Manufactor plays a Recruit token where it is, its base', () => {
+    const start = mainPhase([{ id: 'manufactor', cardId: 'OGN-211', owner: 0, at: 'hand' }])
+    const after = settle(act(start, { type: 'play-card', player: 0, card: 'manufactor' }))
+    expect(recruits(after)).toEqual([
+      expect.objectContaining({ controller: 0, zone: 'base', location: base(0), token: true }),
+    ])
+  })
+
+  it('OGN-222 Noxian Drummer plays a Recruit token at the battlefield it moves to', () => {
+    const start = mainPhase([{ id: 'drummer', cardId: 'OGN-222', owner: 0, at: base(0) }])
+    const moved = act(start, { type: 'move', player: 0, units: ['drummer'], to: field('bf-0') })
+    const after = settle(moved)
+    expect(recruits(after)).toEqual([
+      expect.objectContaining({ zone: 'battlefield', location: field('bf-0') }),
+    ])
+  })
+
+  it('OGN-222 Noxian Drummer plays nothing when it moves back to base', () => {
+    const start = mainPhase([{ id: 'drummer', cardId: 'OGN-222', owner: 0, at: field('bf-0') }])
+    const moved = act(start, { type: 'move', player: 0, units: ['drummer'], to: base(0) })
+    expect(moved.chain).toEqual([])
+    expect(recruits(settle(moved))).toEqual([])
   })
 })

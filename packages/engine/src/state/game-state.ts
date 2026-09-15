@@ -91,6 +91,11 @@ export interface GameObject {
   /** The object this is attached to, if any (434). */
   readonly attachedTo?: ObjectId
   readonly combatRole?: CombatRole
+  /**
+   * A token, not a card (185). Tokens exist only on the board or the Chain; one
+   * put anywhere else ceases to exist (186.1). Absent for a card.
+   */
+  readonly token?: true
 }
 
 /** A Battlefield in the shared Battlefield Zone (107.2). */
@@ -331,6 +336,38 @@ export function playerState(state: GameState, player: PlayerId): PlayerState {
 
 export function battlefield(state: GameState, id: ObjectId): BattlefieldState | undefined {
   return state.battlefields.find((b) => b.id === id)
+}
+
+/**
+ * 186.1 - a token put into a zone other than the board or the Chain ceases to
+ * exist. Call after any zone change; it leaves cards, and tokens still in
+ * play, alone.
+ */
+export function ceaseIfToken(state: GameState, id: ObjectId): GameState {
+  const object = state.objects[id]
+  if (!object?.token) return state
+  if (object.zone === 'base' || object.zone === 'battlefield' || object.zone === 'chain') {
+    return state
+  }
+  const { [id]: _gone, ...objects } = state.objects
+  const owner = state.players[object.owner]
+  const without = (list: readonly ObjectId[]) => list.filter((x) => x !== id)
+  return {
+    ...state,
+    objects,
+    players: {
+      ...state.players,
+      [object.owner]: {
+        ...owner,
+        hand: without(owner.hand),
+        mainDeck: without(owner.mainDeck),
+        runeDeck: without(owner.runeDeck),
+        trash: without(owner.trash),
+        banishment: without(owner.banishment),
+        base: without(owner.base),
+      },
+    },
+  }
 }
 
 /** Objects a player controls at a given Location. */

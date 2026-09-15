@@ -72,7 +72,7 @@ export type GameActionName = (typeof GAME_ACTIONS)[number]
  * not implemented yet and so is not listed; add it here with the schema and
  * interpreter together.
  */
-export const CONTROL_OPS = ['choose', 'may', 'for-each', 'if'] as const
+export const CONTROL_OPS = ['choose', 'may', 'for-each', 'if', 'repeat'] as const
 
 export type ControlOp = (typeof CONTROL_OPS)[number]
 
@@ -173,6 +173,8 @@ export type Selector = z.infer<typeof selectorSchema>
  * Deliberately a short list, grown as cards need it.
  */
 export const triggerConditionSchema = z.discriminatedUnion('kind', [
+  /** "When I move to a battlefield" - where the move ended. */
+  z.object({ kind: z.literal('moved-to-battlefield') }),
   /** "When you play a spell that costs [N] or more" - the printed Energy cost. */
   z.object({ kind: z.literal('spell-cost-at-least'), energy: z.number().int().nonnegative() }),
   /** "If you have N+ units at that battlefield" - the Battlefield the event names. */
@@ -359,6 +361,20 @@ const leafStepSchema = z.discriminatedUnion('op', [
    */
   z.object({ op: z.literal('move'), target: targetSchema, to: z.literal('base') }),
 
+  /**
+   * Create and play unit tokens (439, 185.2.a): "play a 1 [M] Recruit unit
+   * token here". `token` is the token's card id. `to` is its controller's
+   * Base, the source's Location (`here`), or a Battlefield bound by an earlier
+   * `choose` (falling back to Base when nothing was chosen). They enter as
+   * played units do: exhausted, unless its player's units enter ready.
+   */
+  z.object({
+    op: z.literal('play-token'),
+    token: z.string().min(1),
+    count: z.number().int().positive().optional(),
+    to: z.union([z.enum(['base', 'here']), bindingSchema]),
+  }),
+
   /** "Units you play this turn enter ready." Expires with the turn (317.2.c). */
   z.object({ op: z.literal('units-enter-ready'), duration: z.literal('this-turn') }),
 
@@ -402,6 +418,7 @@ type LeafStep = z.infer<typeof leafStepSchema>
 export type EffectStep =
   | LeafStep
   | { readonly op: 'may'; readonly steps: readonly EffectStep[] }
+  | { readonly op: 'repeat'; readonly times: number; readonly steps: readonly EffectStep[] }
   | {
       readonly op: 'if'
       readonly condition: StepCondition
@@ -423,6 +440,12 @@ export const effectStepSchema: z.ZodType<EffectStep> = z.lazy(() =>
      * run only on yes.
      */
     z.object({ op: z.literal('may'), steps: z.array(effectStepSchema) }),
+    /** Run the steps this many times, e.g. once for each of four tokens. */
+    z.object({
+      op: z.literal('repeat'),
+      times: z.number().int().positive(),
+      steps: z.array(effectStepSchema),
+    }),
     /** "If ..., ... (otherwise ...)", checked when the step is reached. */
     z.object({
       op: z.literal('if'),
@@ -445,6 +468,7 @@ export const IMPLEMENTED_OPS: readonly string[] = [
   'may',
   'for-each',
   'if',
+  'repeat',
 ]
 
 export function isImplementedOp(op: string): boolean {

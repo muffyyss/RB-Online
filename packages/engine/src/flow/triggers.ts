@@ -65,6 +65,8 @@ function conditionHolds(
 ): boolean {
   if (!condition) return true
   switch (condition.kind) {
+    case 'moved-to-battlefield':
+      return event.type === 'moved' && event.to.kind === 'battlefield'
     case 'spell-cost-at-least': {
       if (event.type !== 'spell-played') return false
       const card = state.objects[event.card]

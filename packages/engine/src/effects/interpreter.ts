@@ -26,11 +26,12 @@ import type {
   Frame,
   GameObject,
   GameState,
+  Location,
   ObjectId,
   PlayerId,
   PlayerState,
 } from '../state/game-state.js'
-import { opponentOf } from '../state/game-state.js'
+import { ceaseIfToken, opponentOf } from '../state/game-state.js'
 
 export type { Execution, Frame } from '../state/game-state.js'
 
@@ -99,8 +100,10 @@ function moveTo(
           damage: 0,
           buffs: 0,
           faceDown: false,
+          // Kept for one moment, so ceaseIfToken can tell it was a token.
+          ...(current.token ? { token: true as const } : {}),
         }
-  return { ...next, objects: { ...next.objects, [id]: updated } }
+  return ceaseIfToken({ ...next, objects: { ...next.objects, [id]: updated } }, id)
 }
 
 function isOnBoard(object: GameObject): boolean {
@@ -243,6 +246,29 @@ interface StepOutcome {
    * well, it waits on top of the suspended frames for the answer.
    */
   readonly push?: Frame
+  /** A binding to empty, so a step repeated in a loop cannot see an old answer. */
+  readonly unbind?: string
+}
+
+/**
+ * Where a played token goes. A bound Battlefield only counts while it is one
+ * its player controls, since tokens may be played only to those ("your base or
+ * battlefields you control"); otherwise, and when nothing is bound, Base.
+ */
+function tokenDestination(
+  state: GameState,
+  /** `base`, `here`, or a binding. */
+  to: string,
+  player: PlayerId,
+  source: GameObject | undefined,
+  bindings: Readonly<Record<string, readonly ObjectId[]>>,
+): Location {
+  const base: Location = { kind: 'base', player }
+  if (to === 'base') return base
+  if (to === 'here') return source?.location ?? base
+  const chosen = bindings[to]?.[0]
+  const bf = state.battlefields.find((b) => b.id === chosen)
+  return bf?.controller === player ? { kind: 'battlefield', id: bf.id } : base
 }
 
 /** Is an `if` step's condition true right now? */
@@ -298,7 +324,7 @@ function runStep(
         // Do as much as you can, ignoring impossible instructions (Golden/Silver
         // Rules, 054). An empty binding makes dependent steps no-ops.
         events.push({ type: 'effect-skipped', reason: 'no-targets', detail: step.as })
-        return { state }
+        return { state, unbind: step.as }
       }
       return {
         state,
@@ -397,6 +423,43 @@ function runStep(
         events.push({ type: 'moved', unit: id, to })
       }
       // 453 - the Cleanup this calls for runs once the Chain allows it (321.1).
+      return { state: next }
+    }
+
+    case 'play-token': {
+      let next = state
+      const source = state.objects[execution.source]
+      for (let i = 0; i < (step.count ?? 1); i += 1) {
+        const location = tokenDestination(next, step.to, self, source, bindings)
+        const id = `token-${String(next.nextObjectId)}`
+        const player = next.players[self]
+        next = {
+          ...next,
+          nextObjectId: next.nextObjectId + 1,
+          objects: {
+            ...next.objects,
+            [id]: {
+              id,
+              cardId: step.token,
+              owner: self, // 183 - whoever controlled the effect
+              controller: self, // 182
+              zone: location.kind === 'base' ? 'base' : 'battlefield',
+              location,
+              // 185.2.d - a token unit follows the rules for units: it enters
+              // exhausted unless its player's units are entering ready.
+              exhausted: player.unitsEnterReadyThisTurn !== true,
+              damage: 0,
+              buffs: 0,
+              faceDown: false,
+              token: true,
+            },
+          },
+          players: { ...next.players, [self]: { ...player, base: [...player.base, id] } },
+        }
+        events.push({ type: 'played', player: self, card: id })
+      }
+      // Arriving at a Battlefield calls for a Cleanup, which runs once the
+      // Chain allows it (321.1).
       return { state: next }
     }
 
@@ -546,6 +609,20 @@ function runStep(
       }
     }
 
+    case 'repeat': {
+      // A loop over placeholder ids: the same machinery as for-each, binding a
+      // counter nobody reads.
+      const ids = Array.from({ length: step.times }, (_, i) => String(i))
+      return {
+        state,
+        push: {
+          steps: step.steps,
+          index: 0,
+          loop: { as: `$repeat-${String(execution.frames.length)}`, ids, position: 0 },
+        },
+      }
+    }
+
     case 'if': {
       const steps = conditionHolds(state, step.condition, ctx, bindings)
         ? step.then
@@ -672,6 +749,8 @@ export function runExecution(
         execution: suspended,
       }
     }
+
+    if (outcome.unbind !== undefined) bindings[outcome.unbind] = []
 
     if (outcome.push) {
       // A for-each binds its first element before its body runs. `unwind` binds

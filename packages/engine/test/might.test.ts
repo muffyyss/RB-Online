@@ -133,7 +133,8 @@ describe('Assault and Shield', () => {
 
   it('count only while the unit holds the matching combat role', () => {
     const raiders = oracleFrom({ raider: facts })
-    const might = (object: typeof raider) => mightOf({ objects: { r: object } }, object, raiders)
+    const might = (object: typeof raider) =>
+      mightOf({ objects: { r: object }, battlefields: [] }, object, raiders)
     expect(might(raider)).toBe(3)
     expect(might({ ...raider, combatRole: 'attacker' })).toBe(4) // [Assault] is 1
     expect(might({ ...raider, combatRole: 'defender' })).toBe(5) // [Shield 2]

@@ -81,6 +81,8 @@ export interface CardFacts {
    */
   readonly keywordValues?: Readonly<Partial<Record<Keyword, number>>>
   readonly abilities: readonly EngineAbility[]
+  /** A token's definition, not a card's (185): never in a deck. */
+  readonly token?: true
 }
 
 /** Whether a card has a working passive with this effect. */

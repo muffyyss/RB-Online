@@ -10,6 +10,7 @@
 import type { CardFacts, CardOracle, EngineAbility, Keyword } from '@rb/engine'
 
 import { ALL_CARDS } from './registry.js'
+import { ALL_TOKENS } from './tokens.js'
 import type { Ability, CardDefinition } from './schema.js'
 import { cardFullName, keywordName } from './schema.js'
 
@@ -66,11 +67,14 @@ export function factsOf(card: CardDefinition): CardFacts {
     keywords: (card.keywords ?? []).map(keywordName),
     ...keywordValuesOf(card),
     abilities: (card.abilities ?? []).map(engineAbility),
+    ...(card.token ? { token: true as const } : {}),
   }
 }
 
-/** An oracle over the given cards — every authored card by default. */
-export function cardOracle(cards: readonly CardDefinition[] = ALL_CARDS): CardOracle {
+/** An oracle over the given cards — every authored card and token by default. */
+export function cardOracle(
+  cards: readonly CardDefinition[] = [...ALL_CARDS, ...ALL_TOKENS],
+): CardOracle {
   const facts = new Map(cards.map((card) => [card.id, factsOf(card)]))
   return {
     facts(cardId) {

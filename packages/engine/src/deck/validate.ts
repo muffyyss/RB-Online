@@ -104,7 +104,11 @@ export function validateDeck(
     errors.push(card === undefined ? { code, message, rule } : { code, message, rule, card })
   }
 
-  const facts = (id: CardId) => oracle.facts(id)
+  // Tokens are not cards (185.1), so as far as a deck is concerned they do not exist.
+  const facts = (id: CardId) => {
+    const found = oracle.facts(id)
+    return found?.token ? undefined : found
+  }
 
   // --- Legend, which sets the Domain Identity (103.1) ---
   const legend = facts(deck.legend)

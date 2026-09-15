@@ -29,7 +29,7 @@ import type {
   ObjectId,
   PlayerId,
 } from '../state/game-state.js'
-import { opponentOf } from '../state/game-state.js'
+import { ceaseIfToken, opponentOf } from '../state/game-state.js'
 
 /** Units on the board at a Battlefield, controlled by a given player. */
 function unitsAt(
@@ -171,7 +171,7 @@ export function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): G
   if (!object) return state
   const owner = state.players[object.owner]
   events.push({ type: 'killed', target: id })
-  return {
+  const killed: GameState = {
     ...state,
     objects: {
       ...state.objects,
@@ -185,6 +185,7 @@ export function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): G
         damage: 0,
         buffs: 0,
         faceDown: false,
+        ...(object.token ? { token: true as const } : {}),
       },
     },
     players: {
@@ -196,6 +197,7 @@ export function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): G
       },
     },
   }
+  return ceaseIfToken(killed, id)
 }
 
 /** Send a unit back to its controller's Base. A Recall is not a Move (456). */

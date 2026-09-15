@@ -26,8 +26,12 @@ import {
 import type { Keyword } from '@rb/engine'
 import { z } from 'zod'
 
-/** Sets currently authored: Origins: Proving Grounds, and the Origins cards its decks use. */
-export const SET_CODES = ['ogs', 'ogn'] as const
+/**
+ * Sets currently authored: Origins: Proving Grounds, and the Origins cards its
+ * decks use. `tok` holds token definitions, which are not cards (185) and never
+ * appear in a deck or the collection.
+ */
+export const SET_CODES = ['ogs', 'ogn', 'tok'] as const
 
 export type SetCode = (typeof SET_CODES)[number]
 
@@ -174,6 +178,8 @@ export const cardDefinitionSchema = z
   .object({
     id: cardIdSchema,
     set: z.enum(SET_CODES),
+    /** A token's definition rather than a card (185). Lives in the `tok` set. */
+    token: z.literal(true).optional(),
 
     /** Short name. Full name is "[Short Name], [Subtitle]" (132.4). */
     name: z.string().min(1),
@@ -211,9 +217,18 @@ export const cardDefinitionSchema = z
       fail('the champion supertype applies only to units (133.7.a)', 'supertypes')
     }
 
+    // 185 - tokens are not cards: no cost (185.3.a), no domains (185.3.b), and
+    // they belong to the token set and nowhere else.
+    if (card.token !== (card.set === 'tok' ? true : undefined)) {
+      fail('a token lives in the `tok` set, and everything there is a token', 'token')
+    }
+    if (card.token && card.domains.length > 0) fail('a token has no domains (185.3.b)', 'domains')
+    if (card.token && card.cost) fail('a token has no cost (185.3.a)', 'cost')
+
     // 131.1 - only Main Deck cards have a printed cost. Runes are channeled and
     // battlefields/legends start on the board (133.5.a.1, 133.6).
-    const mainDeck = card.type === 'unit' || card.type === 'gear' || card.type === 'spell'
+    const mainDeck =
+      !card.token && (card.type === 'unit' || card.type === 'gear' || card.type === 'spell')
     if (card.cost && !mainDeck) {
       fail(`a ${card.type} has no printed cost (131.1)`, 'cost')
     }

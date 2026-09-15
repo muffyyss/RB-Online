@@ -12,14 +12,17 @@ import type { CardDefinition } from './schema.js'
 import { cardFullName } from './schema.js'
 import { OGN_CARDS } from './sets/ogn/index.js'
 import { OGS_CARDS } from './sets/ogs/index.js'
+import { ALL_TOKENS } from './tokens.js'
 
 /** Every authored card, ordered by id so the content hash is stable. */
 export const ALL_CARDS: readonly CardDefinition[] = [...OGS_CARDS, ...OGN_CARDS].sort((a, b) =>
   a.id.localeCompare(b.id),
 )
 
-const BY_ID = new Map(ALL_CARDS.map((card) => [card.id, card]))
+/** Cards and tokens: anything that can be on the board, for looking up by id. */
+const BY_ID = new Map([...ALL_CARDS, ...ALL_TOKENS].map((card) => [card.id, card]))
 
+/** A card or token by id. */
 export function getCard(id: string): CardDefinition | undefined {
   return BY_ID.get(id)
 }
@@ -86,4 +89,4 @@ function stableStringify(value: unknown): string {
  * Changes whenever any card's data changes. Both sides of a match must agree on
  * it before play begins.
  */
-export const CARD_DATA_VERSION: string = fnv1a(stableStringify(ALL_CARDS))
+export const CARD_DATA_VERSION: string = fnv1a(stableStringify([...ALL_CARDS, ...ALL_TOKENS]))

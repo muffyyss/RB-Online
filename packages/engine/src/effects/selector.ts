@@ -13,10 +13,11 @@ import type { CardOracle } from './oracle.js'
 import type { GameObject, GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 
 /**
- * What selectors look at: the objects. A player's view has them too, so the
- * client can ask the same questions of what it can see.
+ * What selectors look at: the objects, and who controls each Battlefield. A
+ * player's view has both, so the client can ask the same questions of what it
+ * can see.
  */
-export type Board = Pick<GameState, 'objects'>
+export type Board = Pick<GameState, 'objects' | 'battlefields'>
 import { isPermanentType } from '../model/card.js'
 
 /** Where the ability's source sits, so `here` and `same-location` mean something. */
@@ -97,15 +98,22 @@ function matchesLocation(
   }
 }
 
-function matchesController(object: GameObject, selector: Selector, ctx: SelectorContext): boolean {
-  switch (selector.controller ?? 'any') {
-    case 'self':
-      return object.controller === ctx.controller
-    case 'opponent':
-      return object.controller !== ctx.controller
-    case 'any':
-      return true
-  }
+function matchesController(
+  board: Board,
+  object: GameObject,
+  selector: Selector,
+  ctx: SelectorContext,
+): boolean {
+  const wanted = selector.controller ?? 'any'
+  if (wanted === 'any') return true
+  // A Battlefield is controlled by whoever established Control there (190),
+  // not by the player who brought the card. Uncontrolled is nobody's.
+  const controller =
+    ctx.oracle.facts(object.cardId)?.type === 'battlefield'
+      ? board.battlefields.find((bf) => bf.id === object.id)?.controller
+      : object.controller
+  if (controller === undefined) return false
+  return wanted === 'self' ? controller === ctx.controller : controller !== ctx.controller
 }
 
 function matchesMight(
@@ -155,7 +163,7 @@ export function matchesSelector(
     return false
   }
   if (!matchesKind(object, selector, ctx.oracle)) return false
-  if (!matchesController(object, selector, ctx)) return false
+  if (!matchesController(board, object, selector, ctx)) return false
   if (!matchesLocation(object, selector, ctx, board)) return false
   if (!matchesMight(board, object, selector, ctx.oracle)) return false
   if (selector.exhausted !== undefined && object.exhausted !== selector.exhausted) return false
