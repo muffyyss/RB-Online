@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { advanceFlow, applyAction, beginExecution } from '@rb/engine'
+import { advanceFlow, applyAction, beginExecution, mightOf } from '@rb/engine'
 import type { GameState } from '@rb/engine'
 
 import { getCard } from '../src/registry.js'
 import { OGN_CARDS } from '../src/sets/ogn/index.js'
 import { makeState } from '../../engine/test/support/state.js'
-import { act, base, field, mainPhase, oracle, settle } from './support/game.js'
+import { PLAIN_BATTLEFIELD, act, base, field, mainPhase, oracle, settle } from './support/game.js'
 import { attackInto } from './support/combat.js'
 import { board, resolveSpell, testOracle } from './support/play.js'
 
@@ -120,6 +120,9 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'disintegrate-effect',
       'en-garde-effect',
       'cannon-barrage-effect',
+      'wielder-of-water-alone',
+      'trifarian-war-camp-might',
+      'void-gate-bonus-damage',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -490,15 +493,15 @@ describe('OGN cards that move cards between zones', () => {
 describe('OGN cards with a choice to make or a condition to check', () => {
   /** Player 0's Scoring Step, holding bf-0 as Startipped Peak with a unit there. */
   const holdingPeak = (): GameState => {
-    const start = mainPhase([
-      { id: 'guard', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
-      { id: 'rune-a', cardId: 'OGN-126', owner: 0, at: 'runeDeck' },
-    ])
-    const peak = start.objects['bf-0']
-    if (!peak) throw new Error('missing battlefield')
+    const start = mainPhase(
+      [
+        { id: 'guard', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+        { id: 'rune-a', cardId: 'OGN-126', owner: 0, at: 'runeDeck' },
+      ],
+      ['OGN-288', PLAIN_BATTLEFIELD],
+    )
     return {
       ...start,
-      objects: { ...start.objects, 'bf-0': { ...peak, cardId: 'OGN-288' } },
       battlefields: start.battlefields.map((bf) =>
         bf.id === 'bf-0' ? { ...bf, controller: 0 as const } : bf,
       ),
@@ -611,5 +614,70 @@ describe('OGN cards with a choice to make or a condition to check', () => {
     expect(after.objects.fighting?.damage).toBe(2)
     expect(after.objects.elsewhere?.damage).toBe(0)
     expect(after.objects.attacker?.damage).toBe(0)
+  })
+})
+
+describe('OGN passives', () => {
+  const mightIn = (state: GameState, id: string) => {
+    const object = state.objects[id]
+    return object && mightOf(state, object, oracle)
+  }
+
+  it('OGN-055 Wielder of Water has +2 Might while attacking or defending alone', () => {
+    const attack = (withFriend: boolean) =>
+      act(
+        mainPhase([
+          { id: 'wielder', cardId: 'OGN-055', owner: 0, at: base(0) }, // 2 Might
+          ...(withFriend
+            ? [{ id: 'friend', cardId: 'OGN-219', owner: 0 as const, at: base(0) }]
+            : []),
+          { id: 'foe', cardId: 'OGN-088', owner: 1, at: field('bf-0') },
+        ]),
+        {
+          type: 'move',
+          player: 0,
+          units: withFriend ? ['wielder', 'friend'] : ['wielder'],
+          to: field('bf-0'),
+        },
+      )
+    expect(mightIn(attack(false), 'wielder')).toBe(4)
+    expect(mightIn(attack(true), 'wielder')).toBe(2)
+    // And not outside combat at all.
+    expect(mightIn(mainPhase([{ id: 'w', cardId: 'OGN-055', owner: 0, at: base(0) }]), 'w')).toBe(2)
+  })
+
+  it('OGN-294 Trifarian War Camp gives every unit there +1 Might, whoever controls it', () => {
+    const state = mainPhase(
+      [
+        { id: 'mine', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+        { id: 'theirs', cardId: 'OGN-219', owner: 1, at: field('bf-0') },
+        { id: 'elsewhere', cardId: 'OGN-219', owner: 0, at: field('bf-1') },
+        { id: 'home', cardId: 'OGN-219', owner: 0, at: base(0) },
+      ],
+      ['OGN-294', PLAIN_BATTLEFIELD],
+    )
+    expect(mightIn(state, 'mine')).toBe(5)
+    expect(mightIn(state, 'theirs')).toBe(5)
+    expect(mightIn(state, 'elsewhere')).toBe(4)
+    expect(mightIn(state, 'home')).toBe(4)
+  })
+
+  it('OGN-296 Void Gate: spells deal 1 Bonus Damage to units there, from either player', () => {
+    const incinerate = (target: 'bf-0' | 'bf-1') =>
+      settle(
+        act(
+          mainPhase(
+            [
+              { id: 'spell', cardId: 'OGS-003', owner: 0, at: 'hand' }, // Deal 2
+              { id: 'foe', cardId: 'OGN-088', owner: 1, at: field(target) }, // 8 Might
+            ],
+            ['OGN-296', PLAIN_BATTLEFIELD],
+          ),
+          { type: 'play-card', player: 0, card: 'spell' },
+        ),
+        () => ['foe'],
+      )
+    expect(incinerate('bf-0').objects.foe?.damage).toBe(3)
+    expect(incinerate('bf-1').objects.foe?.damage).toBe(2)
   })
 })

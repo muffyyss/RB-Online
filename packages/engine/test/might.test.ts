@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { beginExecution } from '../src/effects/interpreter.js'
-import { currentMight } from '../src/effects/might.js'
+import { mightOf } from '../src/effects/might.js'
 import { keywordValue, oracleFrom } from '../src/effects/oracle.js'
 import { effectStepSchema } from '../src/effects/steps.js'
 import type { EffectStep } from '../src/effects/steps.js'
@@ -132,9 +132,11 @@ describe('Assault and Shield', () => {
   if (!raider) throw new Error('missing unit')
 
   it('count only while the unit holds the matching combat role', () => {
-    expect(currentMight(raider, facts)).toBe(3)
-    expect(currentMight({ ...raider, combatRole: 'attacker' }, facts)).toBe(4) // [Assault] is 1
-    expect(currentMight({ ...raider, combatRole: 'defender' }, facts)).toBe(5) // [Shield 2]
+    const raiders = oracleFrom({ raider: facts })
+    const might = (object: typeof raider) => mightOf({ objects: { r: object } }, object, raiders)
+    expect(might(raider)).toBe(3)
+    expect(might({ ...raider, combatRole: 'attacker' })).toBe(4) // [Assault] is 1
+    expect(might({ ...raider, combatRole: 'defender' })).toBe(5) // [Shield 2]
   })
 
   it('reads a keyword printed without a number as 1, and a missing one as 0', () => {

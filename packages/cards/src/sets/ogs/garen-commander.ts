@@ -3,8 +3,7 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-013 — transcribed from the printed card.
  *
- * "Here" is his own location (050). An aura on other units is a continuous
- * effect, which the engine cannot apply yet.
+ * "Here" is his own location, base or battlefield (050).
  */
 export default defineCard({
   id: 'OGS-013',
@@ -22,7 +21,11 @@ export default defineCard({
       kind: 'passive',
       id: 'garen-commander-aura',
       text: 'Other friendly units have +1 Might here.',
-      notImplemented: 'auras on other units need the continuous-effect layer',
+      effect: {
+        kind: 'might',
+        amount: 1,
+        to: { kind: 'unit', controller: 'self', at: 'here', other: true },
+      },
     },
   ],
   text: 'Other friendly units have +1 [Might] here.',

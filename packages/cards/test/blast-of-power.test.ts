@@ -19,7 +19,7 @@ describe('OGS-012 Blast of Power', () => {
   const scene = () =>
     board([
       { id: 'big', cardId: 'OGS-018', owner: 1, at: 'bf-0' }, // Tibbers, 7 Might
-      { id: 'at-base', cardId: 'OGS-001', owner: 1, at: 'base' },
+      { id: 'at-base', cardId: 'OGN-219', owner: 1, at: 'base' },
     ])
 
   it('kills the chosen unit regardless of Might', () => {

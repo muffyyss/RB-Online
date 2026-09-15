@@ -4,9 +4,7 @@ import { defineCard } from '../../schema.js'
  * OGS-001 — transcribed from the printed card.
  *
  * Bonus Damage raises each instance of damage her controller's spells and
- * abilities deal. That is a continuous effect on damage, and the engine has no
- * continuous-effect layer yet, so the ability is recorded but not run: Annie
- * plays as a 4-Might body until it lands.
+ * abilities deal (712-715). Combat damage is not dealt by a spell or ability.
  */
 export default defineCard({
   id: 'OGS-001',
@@ -24,7 +22,7 @@ export default defineCard({
       kind: 'passive',
       id: 'annie-fiery-bonus-damage',
       text: 'Your spells and abilities deal 1 Bonus Damage.',
-      notImplemented: 'Bonus Damage needs the continuous-effect layer to modify damage dealt',
+      effect: { kind: 'bonus-damage', amount: 1, dealtBy: 'self' },
     },
   ],
   text: 'Your spells and abilities deal 1 Bonus Damage. (Each instance of damage they deal is increased by 1.)',

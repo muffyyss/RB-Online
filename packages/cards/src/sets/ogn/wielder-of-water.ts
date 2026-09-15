@@ -17,7 +17,7 @@ export default defineCard({
       kind: 'passive',
       id: 'wielder-of-water-alone',
       text: "While I'm attacking or defending alone, I have +2 Might.",
-      notImplemented: 'conditional Might needs the continuous-effect layer',
+      effect: { kind: 'might', amount: 2, to: 'me', while: [{ kind: 'alone-in-combat' }] },
     },
   ],
   text: "While I'm attacking or defending alone, I have +2 [Might].",

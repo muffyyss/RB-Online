@@ -11,6 +11,12 @@ import type { Selector } from './steps.js'
 import { mightOf } from './might.js'
 import type { CardOracle } from './oracle.js'
 import type { GameObject, GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
+
+/**
+ * What selectors look at: the objects. A player's view has them too, so the
+ * client can ask the same questions of what it can see.
+ */
+export type Board = Pick<GameState, 'objects'>
 import { isPermanentType } from '../model/card.js'
 
 /** Where the ability's source sits, so `here` and `same-location` mean something. */
@@ -59,7 +65,7 @@ function matchesLocation(
   object: GameObject,
   selector: Selector,
   ctx: SelectorContext,
-  state: GameState,
+  state: Board,
 ): boolean {
   const at = selector.at ?? 'anywhere'
   if (at === 'anywhere') return true
@@ -102,9 +108,14 @@ function matchesController(object: GameObject, selector: Selector, ctx: Selector
   }
 }
 
-function matchesMight(object: GameObject, selector: Selector, oracle: CardOracle): boolean {
+function matchesMight(
+  board: Board,
+  object: GameObject,
+  selector: Selector,
+  oracle: CardOracle,
+): boolean {
   if (!selector.might) return true
-  const actual = mightOf(object, oracle)
+  const actual = mightOf(board, object, oracle)
   if (actual === undefined) return false
   // Negative Might is treated as 0 when referenced by abilities (143.2.b).
   const might = Math.max(0, actual)
@@ -122,37 +133,41 @@ function matchesMight(object: GameObject, selector: Selector, oracle: CardOracle
  * cannot be acted on by effects that target units on the board (141.1.b.2).
  */
 export function resolveSelector(
-  state: GameState,
+  board: Board,
   selector: Selector,
   ctx: SelectorContext,
 ): readonly ObjectId[] {
-  const onBoard = selector.kind !== 'card'
-  return Object.values(state.objects)
-    .filter((object) => {
-      if (selector.zone) {
-        if (object.zone !== selector.zone) return false
-      } else if (onBoard && object.zone !== 'base' && object.zone !== 'battlefield') {
-        return false
-      }
-      if (!matchesKind(object, selector, ctx.oracle)) return false
-      if (!matchesController(object, selector, ctx)) return false
-      if (!matchesLocation(object, selector, ctx, state)) return false
-      if (!matchesMight(object, selector, ctx.oracle)) return false
-      if (selector.exhausted !== undefined && object.exhausted !== selector.exhausted) return false
-      if (
-        selector.inCombat !== undefined &&
-        (object.combatRole !== undefined) !== selector.inCombat
-      ) {
-        return false
-      }
-      if (selector.other && object.id === ctx.source) return false
-      if (selector.tag) {
-        const tags = ctx.oracle.facts(object.cardId)?.tags ?? []
-        if (!tags.includes(selector.tag)) return false
-      }
-      return true
-    })
+  return Object.values(board.objects)
+    .filter((object) => matchesSelector(board, object, selector, ctx))
     .map((object) => object.id)
+}
+
+/** Does this one object match the selector? */
+export function matchesSelector(
+  board: Board,
+  object: GameObject,
+  selector: Selector,
+  ctx: SelectorContext,
+): boolean {
+  if (selector.zone) {
+    if (object.zone !== selector.zone) return false
+  } else if (selector.kind !== 'card' && object.zone !== 'base' && object.zone !== 'battlefield') {
+    return false
+  }
+  if (!matchesKind(object, selector, ctx.oracle)) return false
+  if (!matchesController(object, selector, ctx)) return false
+  if (!matchesLocation(object, selector, ctx, board)) return false
+  if (!matchesMight(board, object, selector, ctx.oracle)) return false
+  if (selector.exhausted !== undefined && object.exhausted !== selector.exhausted) return false
+  if (selector.inCombat !== undefined && (object.combatRole !== undefined) !== selector.inCombat) {
+    return false
+  }
+  if (selector.other && object.id === ctx.source) return false
+  if (selector.tag) {
+    const tags = ctx.oracle.facts(object.cardId)?.tags ?? []
+    if (!tags.includes(selector.tag)) return false
+  }
+  return true
 }
 
 /** How many objects a selector asks for. Absent means exactly one. */

@@ -14,7 +14,8 @@ export default defineCard({
       kind: 'passive',
       id: 'trifarian-war-camp-might',
       text: 'Units here have +1 Might.',
-      notImplemented: 'location-based Might needs the continuous-effect layer',
+      // Any player's units, attackers included.
+      effect: { kind: 'might', amount: 1, to: { kind: 'unit', at: 'here' } },
     },
   ],
   text: 'Units here have +1 [Might]. (This includes attackers.)',

@@ -26,8 +26,8 @@ describe('OGS-022 Final Spark', () => {
 
   it('can target a unit in a base, and either player’s', () => {
     const scene = board([
-      { id: 'enemy-base', cardId: 'OGS-001', owner: 1, at: 'base' },
-      { id: 'mine', cardId: 'OGS-001', owner: 0, at: 'bf-1' },
+      { id: 'enemy-base', cardId: 'OGN-219', owner: 1, at: 'base' },
+      { id: 'mine', cardId: 'OGN-219', owner: 0, at: 'bf-1' },
     ])
     const effect = card.abilities?.find((a) => a.kind === 'spell')
     const started = beginExecution(

@@ -14,7 +14,8 @@ export default defineCard({
       kind: 'passive',
       id: 'void-gate-bonus-damage',
       text: 'Spells and abilities affecting units here each deal 1 Bonus Damage.',
-      notImplemented: 'Bonus Damage needs the continuous-effect layer',
+      // Whoever's spell or ability it is.
+      effect: { kind: 'bonus-damage', amount: 1, to: { kind: 'unit', at: 'here' } },
     },
   ],
   text: 'Spells and abilities affecting units here each deal 1 Bonus Damage. (Each instance of damage the spell deals is increased by 1.)',

@@ -7,12 +7,38 @@
  */
 
 import { applyAction } from '@rb/engine'
-import type { GameAction, GameState, Location, ObjectId, PlayerId, ZoneName } from '@rb/engine'
+import type {
+  CardFacts,
+  CardOracle,
+  GameAction,
+  GameState,
+  Location,
+  ObjectId,
+  PlayerId,
+  ZoneName,
+} from '@rb/engine'
 
 import { cardOracle } from '../../src/oracle.js'
 import { makeState } from '../../../engine/test/support/state.js'
 
-export const oracle = cardOracle()
+/** A battlefield with no abilities, so a scene's battlefields change nothing. */
+export const PLAIN_BATTLEFIELD = 'plain-battlefield'
+
+const plain: CardFacts = {
+  type: 'battlefield',
+  name: 'Plain Field',
+  domains: [],
+  tags: [],
+  keywords: [],
+  abilities: [],
+}
+
+const cards = cardOracle()
+
+/** Every real card, plus the plain battlefield. */
+export const oracle: CardOracle = {
+  facts: (cardId) => (cardId === PLAIN_BATTLEFIELD ? plain : cards.facts(cardId)),
+}
 
 export interface Spec {
   readonly id: ObjectId
@@ -25,10 +51,17 @@ export interface Spec {
 
 /**
  * Player 0's Main Phase with the given objects, two battlefields `bf-0` and
- * `bf-1` (Void Gate, a real battlefield card), a few cards in each deck to draw,
- * and plenty of Energy and Power in player 0's pool.
+ * `bf-1`, a few cards in each deck to draw, and plenty of Energy and Power in
+ * player 0's pool.
+ *
+ * The battlefields have no abilities unless a test names real ones, so that a
+ * Battlefield's passive (Void Gate's Bonus Damage, say) never quietly changes
+ * the numbers in a test about something else.
  */
-export function mainPhase(specs: readonly Spec[]): GameState {
+export function mainPhase(
+  specs: readonly Spec[],
+  battlefields: readonly [string, string] = [PLAIN_BATTLEFIELD, PLAIN_BATTLEFIELD],
+): GameState {
   const deck = (owner: PlayerId) =>
     Array.from({ length: 5 }, (_, i) => ({
       id: `deck-${String(owner)}-${String(i)}`,
@@ -41,8 +74,8 @@ export function mainPhase(specs: readonly Spec[]): GameState {
 
   const state = makeState(
     [
-      { id: 'bf-0', cardId: 'OGN-296', owner: 0, zone: 'battlefield' },
-      { id: 'bf-1', cardId: 'OGN-296', owner: 1, zone: 'battlefield' },
+      { id: 'bf-0', cardId: battlefields[0], owner: 0, zone: 'battlefield' },
+      { id: 'bf-1', cardId: battlefields[1], owner: 1, zone: 'battlefield' },
       ...specs.map((s) => ({
         id: s.id,
         cardId: s.cardId,

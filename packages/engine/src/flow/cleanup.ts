@@ -13,7 +13,8 @@
 
 import type { GameEvent } from '../effects/events.js'
 import type { CardOracle } from '../effects/oracle.js'
-import { beginCombat } from './combat.js'
+import { hasLethalDamage } from '../effects/might.js'
+import { beginCombat, killUnit } from './combat.js'
 import { score } from './phases.js'
 import type { BattlefieldState, GameState, ObjectId, PlayerId } from '../state/game-state.js'
 
@@ -127,6 +128,22 @@ export function stagedCombats(state: GameState): readonly ObjectId[] {
 }
 
 /**
+ * 323.5 - units with lethal damage marked on them are killed.
+ *
+ * Damage is checked as it is dealt, but Might can also fall under damage
+ * already there: an aura leaves with its source, or a "while ..." stops
+ * holding. All are judged against the same board, then removed together.
+ */
+function killLethal(state: GameState, oracle: CardOracle, events: GameEvent[]): GameState {
+  let next = state
+  for (const object of Object.values(state.objects)) {
+    if (object.zone !== 'base' && object.zone !== 'battlefield') continue
+    if (hasLethalDamage(state, object, oracle)) next = killUnit(next, object.id, events)
+  }
+  return next
+}
+
+/**
  * Run a Cleanup and start a Combat if one is now staged.
  *
  * 460 - a Combat begins when a Cleanup occurs, the Chain is empty, a Combat is
@@ -139,7 +156,7 @@ export function stagedCombats(state: GameState): readonly ObjectId[] {
  * first is taken for determinism until it is worth surfacing.
  */
 export function settleBoard(state: GameState, oracle: CardOracle, events: GameEvent[]): GameState {
-  const cleaned = runCleanup(state, events)
+  const cleaned = runCleanup(killLethal(state, oracle, events), events)
   if (cleaned.showdown || cleaned.chain.length > 0 || cleaned.winner !== null) return cleaned
 
   const staged = stagedCombats(cleaned)

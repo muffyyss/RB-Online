@@ -3,8 +3,8 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-019 — transcribed from the printed card. Master Yi's starter Legend.
  *
- * Sets a Body/Calm Domain Identity (103.1.b). "Defends alone" is a combat
- * condition on a continuous Might bonus, which the engine cannot apply yet.
+ * Sets a Body/Calm Domain Identity (103.1.b). "Defends alone": the only unit
+ * its player has defending.
  */
 export default defineCard({
   id: 'OGS-019',
@@ -19,7 +19,12 @@ export default defineCard({
       kind: 'passive',
       id: 'wuju-bladesman-defends-alone',
       text: 'While a friendly unit defends alone, it gets +2 Might.',
-      notImplemented: 'conditional Might modifiers need the continuous-effect layer',
+      effect: {
+        kind: 'might',
+        amount: 2,
+        to: { kind: 'unit', controller: 'self' },
+        while: [{ kind: 'alone-in-combat', role: 'defender' }],
+      },
     },
   ],
   text: 'While a friendly unit defends alone, it gets +2 [Might].',

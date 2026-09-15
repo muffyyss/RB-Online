@@ -3,8 +3,7 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-004 — transcribed from the printed card.
  *
- * A conditional Might bonus is a continuous effect, which the engine cannot
- * apply yet; he plays as a 4-Might body until then.
+ * "Runes" are the runes he controls on the board, exhausted or not.
  */
 export default defineCard({
   id: 'OGS-004',
@@ -22,7 +21,12 @@ export default defineCard({
       kind: 'passive',
       id: 'master-yi-meditative-eight-runes',
       text: 'While you have 8+ runes, I have +4 Might.',
-      notImplemented: 'conditional Might modifiers need the continuous-effect layer',
+      effect: {
+        kind: 'might',
+        amount: 4,
+        to: 'me',
+        while: [{ kind: 'count', of: { kind: 'rune', controller: 'self' }, atLeast: 8 }],
+      },
     },
   ],
   text: 'While you have 8+ runes, I have +4 [Might].',

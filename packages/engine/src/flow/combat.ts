@@ -47,8 +47,8 @@ function unitsAt(
   })
 }
 
-function toTarget(object: GameObject, oracle: CardOracle): DamageTarget {
-  return { id: object.id, might: mightOf(object, oracle) ?? 0, damage: object.damage }
+function toTarget(board: GameState, object: GameObject, oracle: CardOracle): DamageTarget {
+  return { id: object.id, might: mightOf(board, object, oracle) ?? 0, damage: object.damage }
 }
 
 /**
@@ -58,10 +58,14 @@ function toTarget(object: GameObject, oracle: CardOracle): DamageTarget {
  * (815.1.b); among Tanks, and among the rest, order is the assigning player's
  * choice (815.1.c.2, 465.2.c.7) and is kept deterministic here.
  */
-function assignmentOrder(units: readonly GameObject[], oracle: CardOracle): DamageTarget[] {
+function assignmentOrder(
+  state: GameState,
+  units: readonly GameObject[],
+  oracle: CardOracle,
+): DamageTarget[] {
   const tank = (unit: GameObject) => oracle.facts(unit.cardId)?.keywords.includes('tank') ?? false
   return [...units.filter(tank), ...units.filter((unit) => !tank(unit))].map((unit) =>
-    toTarget(unit, oracle),
+    toTarget(state, unit, oracle),
   )
 }
 
@@ -134,8 +138,8 @@ export function resolveCombatDamage(
   // 465.1 - damage happens only if both sides still have units here.
   if (attackers.length === 0 || defenders.length === 0) return state
 
-  const attackTargets = assignmentOrder(defenders, oracle)
-  const defendTargets = assignmentOrder(attackers, oracle)
+  const attackTargets = assignmentOrder(state, defenders, oracle)
+  const defendTargets = assignmentOrder(state, attackers, oracle)
 
   const ontoDefenders = assignDamage(sumMight(defendTargets), attackTargets)
   const ontoAttackers = assignDamage(sumMight(attackTargets), defendTargets)
@@ -149,20 +153,20 @@ export function resolveCombatDamage(
     events.push({ type: 'damage-dealt', target: id, amount })
   }
 
-  // Then kill everything that took lethal damage (143.2.a).
-  let next: GameState = { ...state, objects }
+  // Then kill everything that took lethal damage (143.2.a). Judged against the
+  // board as dealt, before anyone is removed: deaths are simultaneous, so one
+  // unit dying cannot change whether another survived.
+  const dealt: GameState = { ...state, objects }
+  let next = dealt
   for (const id of [...ontoDefenders.keys(), ...ontoAttackers.keys()]) {
-    const object = next.objects[id]
-    if (!object) continue
-    if (hasLethalDamage(object, oracle)) {
-      next = killUnit(next, id, events)
-    }
+    const object = dealt.objects[id]
+    if (object && hasLethalDamage(dealt, object, oracle)) next = killUnit(next, id, events)
   }
   return next
 }
 
 /** Move a dead unit to its owner's trash, clearing its board state (705). */
-function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): GameState {
+export function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): GameState {
   const object = state.objects[id]
   if (!object) return state
   const owner = state.players[object.owner]
@@ -185,7 +189,11 @@ function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): GameStat
     },
     players: {
       ...state.players,
-      [object.owner]: { ...owner, trash: [id, ...owner.trash] },
+      [object.owner]: {
+        ...owner,
+        base: owner.base.filter((x) => x !== id),
+        trash: [id, ...owner.trash],
+      },
     },
   }
 }

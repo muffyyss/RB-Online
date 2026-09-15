@@ -190,12 +190,67 @@ export type TriggerCondition = z.infer<typeof triggerConditionSchema>
  * A passive is not executed (363): the engine consults it at the moment it
  * matters. Deliberately a short list, grown as cards need it.
  */
+/**
+ * A condition a passive holds under ("while ..."), checked whenever it matters.
+ */
+export const passiveConditionSchema = z.discriminatedUnion('kind', [
+  /** "While you have 8+ runes": a count from the source's controller's view. */
+  z.object({
+    kind: z.literal('count'),
+    of: selectorSchema,
+    atLeast: z.number().int().nonnegative().optional(),
+    atMost: z.number().int().nonnegative().optional(),
+  }),
+  /**
+   * "While I'm attacking or defending alone": the affected unit holds a combat
+   * designation (of this role, if given) and no other unit its controller
+   * controls there holds the same one.
+   */
+  z.object({
+    kind: z.literal('alone-in-combat'),
+    role: z.enum(['attacker', 'defender']).optional(),
+  }),
+])
+
+export type PassiveCondition = z.infer<typeof passiveConditionSchema>
+
+/** Whom a passive affects: its source ("I have ..."), or what a selector picks out. */
+const affectsSchema = z.union([
+  z.literal('me'),
+  selectorSchema.refine((selector) => selector.might === undefined, {
+    message: 'a passive cannot pick units by Might: Might is what passives change',
+  }),
+])
+
 export const passiveEffectSchema = z.discriminatedUnion('kind', [
   /**
    * "I enter ready." Replaces entering exhausted (143.4) rather than readying
    * afterwards, so nothing that cares about becoming ready fires (805.6.a).
    */
   z.object({ kind: z.literal('enters-ready') }),
+  /**
+   * "I have +2 [M]", "Units here have +1 [M]": Might in the Arithmetic layer
+   * (477.3) while the source is in play and every condition holds. Not
+   * snapshotted, since it comes from a passive (477.3.b): it follows the board.
+   */
+  z.object({
+    kind: z.literal('might'),
+    amount: z.number().int(),
+    to: affectsSchema,
+    while: z.array(passiveConditionSchema).optional(),
+  }),
+  /**
+   * Bonus Damage (712): each Deal from a spell or ability deals this much more.
+   * `dealtBy: 'self'` limits it to its controller's spells and abilities
+   * ("your spells"); `to` limits it to what is being dealt damage ("units
+   * here"). Instances add up (714).
+   */
+  z.object({
+    kind: z.literal('bonus-damage'),
+    amount: z.number().int().positive(),
+    dealtBy: z.literal('self').optional(),
+    to: selectorSchema.optional(),
+  }),
 ])
 
 export type PassiveEffect = z.infer<typeof passiveEffectSchema>

@@ -43,19 +43,21 @@ export {
   bindingSchema,
   effectStepSchema,
   isImplementedOp,
+  passiveConditionSchema,
   passiveEffectSchema,
   selectorSchema,
   stepConditionSchema,
   targetSchema,
   triggerConditionSchema,
 } from './effects/steps.js'
-export { currentMight, hasLethalDamage, mightOf } from './effects/might.js'
+export { activePassives, bonusDamage, hasLethalDamage, mightOf } from './effects/might.js'
 export type {
   Amount,
   ControlOp,
   EffectStep,
   TriggerCondition,
   GameActionName,
+  PassiveCondition,
   PassiveEffect,
   Selector,
   StepCondition,

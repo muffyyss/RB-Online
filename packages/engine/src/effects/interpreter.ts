@@ -16,7 +16,7 @@ import { SELF_BINDING } from './steps.js'
 import type { Amount, EffectStep, StepCondition, Target } from './steps.js'
 import type { CardOracle } from './oracle.js'
 import type { GameEvent } from './events.js'
-import { hasLethalDamage, mightOf } from './might.js'
+import { bonusDamage, hasLethalDamage, mightOf } from './might.js'
 import { resolveSelector, selectorCount } from './selector.js'
 import type { SelectorContext } from './selector.js'
 import type { Domain } from '../model/domain.js'
@@ -197,7 +197,7 @@ function killIfLethal(
   events: GameEvent[],
 ): GameState {
   const object = state.objects[id]
-  if (!object || !hasLethalDamage(object, oracle)) return state
+  if (!object || !hasLethalDamage(state, object, oracle)) return state
   events.push({ type: 'killed', target: id })
   return moveTo(state, id, 'trash')
 }
@@ -315,7 +315,12 @@ function runStep(
     case 'deal': {
       let next = state
       const amount = amountOf(state, step.amount, ctx)
-      for (const id of resolve(step.target)) next = damage(next, oracle, id, amount, events)
+      for (const id of resolve(step.target)) {
+        const target = next.objects[id]
+        // 715.4 - no damage dealt, no Bonus Damage; 715.2 - each target separately.
+        const bonus = target && amount > 0 ? bonusDamage(next, self, target, oracle) : 0
+        next = damage(next, oracle, id, amount + bonus, events)
+      }
       return { state: next }
     }
 
@@ -364,7 +369,7 @@ function runStep(
       for (const id of resolve(step.target)) {
         const object = next.objects[id]
         if (!object || !isOnBoard(object)) continue
-        const might = mightOf(object, oracle)
+        const might = mightOf(next, object, oracle)
         if (might === undefined) continue
         // 477.3.b - "to a minimum of N" is snapshotted: work out how much of the
         // decrease applies now, and that is what lasts the rest of the turn. A

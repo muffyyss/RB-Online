@@ -73,7 +73,7 @@ function Piece(props: { session: MatchSession; view: GameView; id: ObjectId }) {
   const { session, view, id } = props
   const object = view.objects[id]
   if (!object) return null
-  const might = mightOf(object, oracle)
+  const might = mightOf(view, object, oracle)
   const keywords = keywordsOf(object)
   const abilities = abilitiesOf(session.legal, id)
   const moves = movesOf(session.legal, id)

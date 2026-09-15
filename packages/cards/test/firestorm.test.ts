@@ -17,11 +17,11 @@ describe('OGS-002 Firestorm', () => {
 
   const scene = () =>
     board([
-      { id: 'enemy-a', cardId: 'OGS-001', owner: 1, at: 'bf-0' }, // 4 Might
+      { id: 'enemy-a', cardId: 'OGN-219', owner: 1, at: 'bf-0' }, // 4 Might
       { id: 'enemy-b', cardId: 'OGS-014', owner: 1, at: 'bf-0' }, // 2 Might
-      { id: 'mine', cardId: 'OGS-001', owner: 0, at: 'bf-0' },
-      { id: 'enemy-elsewhere', cardId: 'OGS-001', owner: 1, at: 'bf-1' },
-      { id: 'enemy-base', cardId: 'OGS-001', owner: 1, at: 'base' },
+      { id: 'mine', cardId: 'OGN-219', owner: 0, at: 'bf-0' },
+      { id: 'enemy-elsewhere', cardId: 'OGN-219', owner: 1, at: 'bf-1' },
+      { id: 'enemy-base', cardId: 'OGN-219', owner: 1, at: 'base' },
     ])
 
   it('deals 3 to every enemy unit at the chosen battlefield, and nothing else', () => {
