@@ -66,7 +66,7 @@ export interface PendingChoiceView {
   readonly min: number
   readonly max: number
   /** `may` for a yes-or-no question, `predict` for a look at the top card. */
-  readonly kind?: 'may' | 'predict'
+  readonly kind?: 'may' | 'predict' | 'cost'
   /** The Chain item whose targets are being chosen, if any. */
   readonly item?: ObjectId
 }

@@ -257,8 +257,15 @@ function Choice(props: { session: MatchSession; view: GameView }) {
   return (
     <div className="card choice">
       <h2>
-        Choose{' '}
-        {choice.min === choice.max ? choice.max : `${String(choice.min)}–${String(choice.max)}`}
+        {choice.kind === 'cost' ? (
+          // An optional additional cost (355.1.a): pick what to exhaust, or nothing.
+          'Additional cost: exhaust a unit, or confirm with none'
+        ) : (
+          <>
+            Choose{' '}
+            {choice.min === choice.max ? choice.max : `${String(choice.min)}–${String(choice.max)}`}
+          </>
+        )}
       </h2>
       <div className="choice-options">
         {choice.candidates.map((id) => (

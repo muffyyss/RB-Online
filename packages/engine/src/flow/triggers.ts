@@ -161,6 +161,13 @@ function hitsFor(
     // designation when the combat began.
     case 'combat-began':
       for (const object of objects) {
+        // The Battlefield itself: "when you defend here" is its defender's.
+        if (oracle.facts(object.cardId)?.type === 'battlefield') {
+          if (object.id !== event.battlefield) continue
+          add(object, 'attack', event.attacker)
+          add(object, 'defend', event.defender)
+          continue
+        }
         if (!isUnit(object, oracle) || !atBattlefield(object, event.battlefield)) continue
         if (object.controller === event.attacker) add(object, 'attack')
         if (object.controller === event.defender) add(object, 'defend')

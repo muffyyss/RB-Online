@@ -12,6 +12,8 @@ import type { GameEvent } from '../effects/events.js'
 import { hasPassive } from '../effects/oracle.js'
 import type { CardFacts, CardOracle } from '../effects/oracle.js'
 import { canPay, pay } from '../model/cost.js'
+import type { Cost } from '../model/cost.js'
+import { spellCost } from '../effects/might.js'
 import {
   addToChain,
   advanceChain,
@@ -108,6 +110,12 @@ export interface RuleViolation {
  * Units and gear are not refused for a missing passive or trigger: the body is
  * real and playable, and the gap is shown against the card.
  */
+/** 356 - what a card costs to play right now: spells may be discounted (356.4). */
+function totalCost(state: GameState, oracle: CardOracle, player: PlayerId, facts: CardFacts): Cost {
+  const printed = facts.cost ?? { energy: 0, power: [] }
+  return facts.type === 'spell' ? spellCost(state, oracle, player, printed) : printed
+}
+
 function unimplementedEffect(facts: CardFacts): string | null {
   if (facts.type !== 'spell') return null
   return facts.abilities.find((a) => a.kind === 'spell')?.notImplemented ?? null
@@ -340,9 +348,8 @@ export function applyAction(
         return reject('illegal-location', 'that card cannot be played there')
       }
 
-      // 356 - Total Cost. Cost modifications (356.1-356.5) are not implemented;
-      // no OGS card applies one. The base cost is the total for now.
-      const cost = facts.cost ?? { energy: 0, power: [] }
+      // 356 - Total Cost: the printed cost with any discounts in play (356.4).
+      const cost = totalCost(state, oracle, action.player, facts)
       const pool = state.players[action.player].runePool
       const target = { cardType: facts.type }
       if (!canPay(cost, facts.domains, pool, target)) {
@@ -597,7 +604,7 @@ export function legalActions(
     if (!facts) continue
     if (unimplementedEffect(facts)) continue
     if (timingRefusal(state, player, facts.keywords)) continue
-    const cost = facts.cost ?? { energy: 0, power: [] }
+    const cost = totalCost(state, oracle, player, facts)
     const target = { cardType: facts.type }
     const paid = pay(cost, facts.domains, state.players[player].runePool, target)
     if (!paid) continue

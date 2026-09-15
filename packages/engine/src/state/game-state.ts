@@ -14,6 +14,7 @@
  */
 
 import type { EffectStep } from '../effects/steps.js'
+import type { Keyword } from '../model/keyword.js'
 import type { RngState } from '../rng.js'
 import type { Domain } from '../model/domain.js'
 import type { RunePool } from '../model/cost.js'
@@ -86,6 +87,19 @@ export interface GameObject {
    * it leaves the board. Absent means 0.
    */
   readonly mightThisTurn?: number
+  /**
+   * Net Might given with no duration ("give me +2 [M]"), kept while the unit
+   * stays on the board, by analogy with a keyword given with no duration
+   * (801.3.a.3). Goes when it leaves. Absent means 0.
+   */
+  readonly mightWhileOnBoard?: number
+  /** Keywords given "this combat", by value (807.2, 814.2 sum them). Cleared as combat ends. */
+  readonly keywordsThisCombat?: Readonly<Partial<Record<Keyword, number>>>
+  /**
+   * "The next time it dies this turn, recall it exhausted instead" (438). Used
+   * up by the first death it replaces; expires with the turn.
+   */
+  readonly recallInsteadOfDying?: true
   /** Back side presented; its front is Private information (129.4). */
   readonly faceDown: boolean
   /** The object this is attached to, if any (434). */
@@ -203,9 +217,10 @@ export interface PendingChoice {
    * ability's source; choosing it means yes, choosing nothing means no.
    * `predict`: the only candidate is the top card of the player's Main Deck,
    * shown to them alone; choosing it recycles it (436).
+   * `cost`: an optional additional cost, paid by choosing (355.1.a).
    * Absent for an ordinary choice of objects.
    */
-  readonly kind?: 'may' | 'predict'
+  readonly kind?: 'may' | 'predict' | 'cost'
   /**
    * Set when the choice is a target for this Chain item, made as it is put on
    * the Chain (355.5). The answer is kept on the item until it resolves.

@@ -15,7 +15,7 @@
  */
 
 import type { CardFacts, CardOracle } from '../effects/oracle.js'
-import { keywordValue } from '../effects/oracle.js'
+import { keywordOn } from '../effects/might.js'
 import { resolveSelector } from '../effects/selector.js'
 import type { EffectStep } from '../effects/steps.js'
 import { canPay, pay } from '../model/cost.js'
@@ -23,6 +23,13 @@ import type { Cost, RunePool } from '../model/cost.js'
 import type { GameState, ObjectId, PlayerId } from '../state/game-state.js'
 
 export type ChooseStep = Extract<EffectStep, { op: 'choose' }>
+
+export type AdditionalCostStep = Extract<EffectStep, { op: 'additional-cost' }>
+
+/** Optional additional costs, chosen before targets as the card is played (355.1.a). */
+export function costChoices(steps: readonly EffectStep[]): readonly AdditionalCostStep[] {
+  return steps.filter((step): step is AdditionalCostStep => step.op === 'additional-cost')
+}
 
 /** Zones whose contents are not public, so choosing from them is not targeting (355.10.a). */
 const PRIVATE_ZONES: ReadonlySet<string> = new Set(['hand', 'runeDeck', 'mainDeck'])
@@ -52,8 +59,7 @@ export function deflectCost(
 ): number {
   const object = state.objects[target]
   if (!object || object.controller === chooser) return 0
-  const facts = oracle.facts(object.cardId)
-  return facts ? keywordValue(facts, 'deflect') : 0
+  return keywordOn(object, oracle, 'deflect')
 }
 
 /** [A] Power, `count` times over. */

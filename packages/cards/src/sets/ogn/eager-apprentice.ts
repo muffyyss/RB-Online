@@ -17,7 +17,12 @@ export default defineCard({
       kind: 'passive',
       id: 'eager-apprentice-discount',
       text: "While I'm at a battlefield, spells you play cost 1 less Energy, to a minimum of 1.",
-      notImplemented: 'cost modification (356) is not implemented',
+      effect: {
+        kind: 'spell-cost-reduction',
+        energy: 1,
+        minimum: 1,
+        while: [{ kind: 'at-battlefield' }],
+      },
     },
   ],
   text: "While I'm at a battlefield, the Energy costs for spells you play is reduced by [1], to a minimum of [1].",

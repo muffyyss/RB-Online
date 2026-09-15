@@ -50,7 +50,14 @@ export {
   targetSchema,
   triggerConditionSchema,
 } from './effects/steps.js'
-export { activePassives, bonusDamage, hasLethalDamage, mightOf } from './effects/might.js'
+export {
+  activePassives,
+  bonusDamage,
+  hasLethalDamage,
+  keywordOn,
+  mightOf,
+  spellCost,
+} from './effects/might.js'
 export type {
   Amount,
   ControlOp,

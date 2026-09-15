@@ -7,6 +7,7 @@ import {
   legalActions,
   mightOf,
   redactFor,
+  spellCost,
 } from '@rb/engine'
 import type { GameState } from '@rb/engine'
 
@@ -14,7 +15,7 @@ import { getCard } from '../src/registry.js'
 import { OGN_CARDS } from '../src/sets/ogn/index.js'
 import { makeState } from '../../engine/test/support/state.js'
 import { PLAIN_BATTLEFIELD, act, base, field, mainPhase, oracle, settle } from './support/game.js'
-import { attackInto } from './support/combat.js'
+import { attackInto, fightOut } from './support/combat.js'
 import { board, resolveSpell, testOracle } from './support/play.js'
 
 /**
@@ -134,6 +135,10 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'noxian-drummer-recruit',
       'sai-scout-open-battlefield',
       'sneaky-deckhand-open-battlefield',
+      'eager-apprentice-discount',
+      'meditation-effect',
+      'fortified-position-shield',
+      'dune-drake-hunt',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -847,5 +852,127 @@ describe('OGN-013 Pouty Poro (Deflect)', () => {
     const cast = act(scene(0, {}), { type: 'play-card', player: 0, card: 'spell' })
     const aimed = act(cast, { type: 'resolve-choice', player: 0, chosen: ['poro'] })
     expect(settle(aimed).objects.poro?.zone).toBe('trash')
+  })
+})
+
+describe('the last of the Proving Grounds cards', () => {
+  it('OGN-084 Eager Apprentice: spells cost 1 less Energy while it is at a battlefield, to a minimum of 1', () => {
+    const cost = (at: 'base' | 'bf-0', energy: number) => {
+      const state = mainPhase([
+        { id: 'apprentice', cardId: 'OGN-084', owner: 0, at: at === 'base' ? base(0) : field(at) },
+      ])
+      return spellCost(state, oracle, 0, { energy, power: [] }).energy
+    }
+    expect(cost('bf-0', 5)).toBe(4)
+    expect(cost('bf-0', 2)).toBe(1)
+    expect(cost('bf-0', 1)).toBe(1) // the minimum
+    expect(cost('base', 5)).toBe(5)
+    // And only for its controller's spells.
+    const theirs = mainPhase([{ id: 'apprentice', cardId: 'OGN-084', owner: 1, at: field('bf-0') }])
+    expect(spellCost(theirs, oracle, 0, { energy: 5, power: [] }).energy).toBe(5)
+  })
+
+  it('OGN-084 Eager Apprentice lets a spell be played with the Energy the discount saves', () => {
+    const scene = (at: 'base' | 'bf-1') => {
+      const state = mainPhase([
+        { id: 'apprentice', cardId: 'OGN-084', owner: 0, at: at === 'base' ? base(0) : field(at) },
+        { id: 'spell', cardId: 'OGS-003', owner: 0, at: 'hand' }, // Incinerate, 2 Energy
+        { id: 'foe', cardId: 'OGN-088', owner: 1, at: field('bf-0') },
+      ])
+      const player = state.players[0]
+      return {
+        ...state,
+        players: {
+          ...state.players,
+          0: { ...player, runePool: { ...player.runePool, energy: 1 } },
+        },
+      }
+    }
+    const played = act(scene('bf-1'), { type: 'play-card', player: 0, card: 'spell' })
+    expect(played.players[0].runePool.energy).toBe(0)
+    expect(() => act(scene('base'), { type: 'play-card', player: 0, card: 'spell' })).toThrow(
+      /cannot pay/,
+    )
+  })
+
+  it('OGN-048 Meditation: exhaust a friendly unit as it is played to draw 2, or draw 1', () => {
+    const start = mainPhase([
+      { id: 'meditation', cardId: 'OGN-048', owner: 0, at: 'hand' },
+      { id: 'monk', cardId: 'OGN-219', owner: 0, at: base(0) },
+    ])
+    const asked = act(start, { type: 'play-card', player: 0, card: 'meditation' })
+    expect(asked.pendingChoice).toMatchObject({
+      kind: 'cost',
+      candidates: ['monk'],
+      min: 0,
+      max: 1,
+    })
+
+    const paid = act(asked, { type: 'resolve-choice', player: 0, chosen: ['monk'] })
+    expect(paid.objects.monk?.exhausted).toBe(true) // paid now, before it resolves
+    expect(settle(paid).players[0].hand).toHaveLength(2)
+
+    const declined = act(asked, { type: 'resolve-choice', player: 0, chosen: [] })
+    expect(declined.objects.monk?.exhausted).toBe(false)
+    expect(settle(declined).players[0].hand).toHaveLength(1)
+  })
+
+  it('OGN-048 Meditation asks nothing with no ready friendly unit, and draws 1', () => {
+    const start = mainPhase([
+      { id: 'meditation', cardId: 'OGN-048', owner: 0, at: 'hand' },
+      { id: 'tired', cardId: 'OGN-219', owner: 0, at: base(0), exhausted: true },
+    ])
+    const played = act(start, { type: 'play-card', player: 0, card: 'meditation' })
+    expect(played.pendingChoice).toBeNull()
+    expect(settle(played).players[0].hand).toHaveLength(1)
+  })
+
+  it('OGN-279 Fortified Position: when you defend here, a unit gains Shield 2 this combat', () => {
+    const start = mainPhase(
+      [
+        { id: 'attacker', cardId: 'OGN-049', owner: 0, at: base(0) }, // 5 Might
+        { id: 'guard', cardId: 'OGN-219', owner: 1, at: field('bf-0') }, // 4 Might
+      ],
+      ['OGN-279', PLAIN_BATTLEFIELD],
+    )
+    const moved = act(start, { type: 'move', player: 0, units: ['attacker'], to: field('bf-0') })
+    expect(moved.chain[0]).toMatchObject({ source: 'bf-0', controller: 1 })
+    expect(moved.pendingChoice).toMatchObject({ player: 1 })
+
+    const after = fightOut(moved, () => ['guard'])
+    // Shield 2 made the guard a 6: it survived the 5 and dealt 6.
+    expect(after.objects.guard?.zone).toBe('battlefield')
+    expect(after.objects.attacker?.zone).toBe('trash')
+    expect(after.objects.guard?.keywordsThisCombat).toBeUndefined() // gone with the combat
+  })
+
+  it('OGN-131 Dune Drake gets +2 Might when it attacks where there is a ready enemy, and keeps it', () => {
+    const attack = (enemyExhausted: boolean) =>
+      settle(
+        act(
+          mainPhase([
+            { id: 'drake', cardId: 'OGN-131', owner: 0, at: base(0) },
+            {
+              id: 'foe',
+              cardId: 'OGN-088',
+              owner: 1,
+              at: field('bf-0'),
+              exhausted: enemyExhausted,
+            },
+          ]),
+          { type: 'move', player: 0, units: ['drake'], to: field('bf-0') },
+        ),
+      )
+    const ready = attack(false)
+    expect(ready.objects.drake?.mightWhileOnBoard).toBe(2)
+    // No duration was printed: it does not expire with the turn.
+    const { showdown: _combat, ...afterCombat } = ready
+    const ended = advanceFlow(
+      { ...afterCombat, phase: 'ending', step: 'expiration', stepTaskDone: false, priority: null },
+      oracle,
+    ).state
+    expect(ended.objects.drake?.mightWhileOnBoard).toBe(2)
+
+    expect(attack(true).objects.drake?.mightWhileOnBoard).toBeUndefined()
   })
 })

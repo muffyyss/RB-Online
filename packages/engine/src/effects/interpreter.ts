@@ -16,6 +16,7 @@ import { SELF_BINDING } from './steps.js'
 import type { Amount, EffectStep, StepCondition, Target } from './steps.js'
 import type { CardOracle } from './oracle.js'
 import type { GameEvent } from './events.js'
+import { replaceDeath } from './death.js'
 import { bonusDamage, hasLethalDamage, mightOf } from './might.js'
 import { resolveSelector, selectorCount } from './selector.js'
 import type { SelectorContext } from './selector.js'
@@ -104,6 +105,15 @@ function moveTo(
           ...(current.token ? { token: true as const } : {}),
         }
   return ceaseIfToken({ ...next, objects: { ...next.objects, [id]: updated } }, id)
+}
+
+/** The one object a binding holds, if it is still on the board. */
+function boundOnBoard(
+  state: GameState,
+  ids: readonly ObjectId[] | undefined,
+): GameObject | undefined {
+  const object = ids?.[0] === undefined ? undefined : state.objects[ids[0]]
+  return object && isOnBoard(object) ? object : undefined
 }
 
 function isOnBoard(object: GameObject): boolean {
@@ -201,6 +211,13 @@ function killIfLethal(
 ): GameState {
   const object = state.objects[id]
   if (!object || !hasLethalDamage(state, object, oracle)) return state
+  return kill(state, id, events)
+}
+
+/** A unit dies (428), unless something replaces its death. */
+function kill(state: GameState, id: ObjectId, events: GameEvent[]): GameState {
+  const replaced = replaceDeath(state, id, events)
+  if (replaced) return replaced
   events.push({ type: 'killed', target: id })
   return moveTo(state, id, 'trash')
 }
@@ -239,7 +256,7 @@ interface StepOutcome {
     readonly min: number
     readonly max: number
     readonly optional: boolean
-    readonly kind?: 'may' | 'predict'
+    readonly kind?: 'may' | 'predict' | 'cost'
   }
   /**
    * A frame to push, for steps that contain other steps. With a choice as
@@ -289,6 +306,8 @@ function conditionHolds(
       if (condition.atMost !== undefined && count > condition.atMost) return false
       return true
     }
+    case 'chosen':
+      return (bindings[condition.binding] ?? []).length > 0
     case 'left-board': {
       const bound = bindings[condition.target] ?? []
       return (
@@ -377,12 +396,48 @@ function runStep(
 
     case 'kill': {
       let next = state
+      for (const id of resolve(step.target)) next = kill(next, id, events)
+      return { state: next }
+    }
+
+    case 'grant-keyword': {
+      let next = state
+      const value = step.value ?? 1
       for (const id of resolve(step.target)) {
-        next = moveTo(next, id, 'trash')
-        events.push({ type: 'killed', target: id })
+        const object = next.objects[id]
+        if (!object || !isOnBoard(object)) continue
+        const granted = object.keywordsThisCombat ?? {}
+        next = withObject(next, id, {
+          keywordsThisCombat: { ...granted, [step.keyword]: (granted[step.keyword] ?? 0) + value },
+        })
       }
       return { state: next }
     }
+
+    case 'deal-each-other': {
+      const a = boundOnBoard(state, bindings[step.a])
+      const b = boundOnBoard(state, bindings[step.b])
+      // Both must still be there to fight: if either is gone, neither deals.
+      if (!a || !b || a.id === b.id) return { state }
+      const fromA = Math.max(0, mightOf(state, a, oracle) ?? 0)
+      const fromB = Math.max(0, mightOf(state, b, oracle) ?? 0)
+      let next = damage(state, oracle, b.id, fromA, events)
+      next = damage(next, oracle, a.id, fromB, events)
+      return { state: next }
+    }
+
+    case 'recall-instead-of-dying': {
+      let next = state
+      for (const id of resolve(step.target)) {
+        const object = next.objects[id]
+        if (object && isOnBoard(object)) next = withObject(next, id, { recallInsteadOfDying: true })
+      }
+      return { state: next }
+    }
+
+    case 'additional-cost':
+      // Chosen and paid as the card was played (355.1.a); nothing to do now.
+      return { state }
 
     case 'banish': {
       let next = state
@@ -420,7 +475,13 @@ function runStep(
           step.minimum !== undefined && amount < 0
             ? Math.min(0, Math.max(amount, step.minimum - might))
             : amount
-        next = withObject(next, id, { mightThisTurn: (object.mightThisTurn ?? 0) + applied })
+        next = withObject(
+          next,
+          id,
+          step.duration === 'this-turn'
+            ? { mightThisTurn: (object.mightThisTurn ?? 0) + applied }
+            : { mightWhileOnBoard: (object.mightWhileOnBoard ?? 0) + applied },
+        )
         events.push({ type: 'might-given', target: id, amount: applied })
         // 143.2.a - a unit whose Might drops to its damage dies.
         next = killIfLethal(next, oracle, id, events)

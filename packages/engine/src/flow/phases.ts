@@ -184,8 +184,12 @@ function expiration(state: GameState, events: GameEvent[]): GameState {
     }
     // 317.2.c - "this turn" effects expire. After healing, so a unit whose
     // Might falls back cannot die to damage that is already gone.
-    if (object.mightThisTurn !== undefined) {
-      const { mightThisTurn: _expired, ...rest } = objects[id] ?? object
+    if (object.mightThisTurn !== undefined || object.recallInsteadOfDying !== undefined) {
+      const {
+        mightThisTurn: _might,
+        recallInsteadOfDying: _recall,
+        ...rest
+      } = objects[id] ?? object
       objects[id] = rest
     }
   }

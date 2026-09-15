@@ -33,3 +33,26 @@ export function attackInto(
   if (current.showdown) throw new Error('combat did not end')
   return { state: current, events }
 }
+
+/**
+ * Finish a combat that is already open: answer any choice with `choose`, pass
+ * otherwise, until the showdown closes.
+ */
+export function fightOut(
+  state: GameState,
+  choose: (candidates: readonly ObjectId[]) => readonly ObjectId[] = (c) => c.slice(0, 1),
+): GameState {
+  let current = state
+  for (let i = 0; i < 40 && current.showdown; i += 1) {
+    const choice = current.pendingChoice
+    current = choice
+      ? act(current, {
+          type: 'resolve-choice',
+          player: choice.player,
+          chosen: choose(choice.candidates),
+        })
+      : act(current, { type: 'pass', player: current.priority as PlayerId })
+  }
+  if (current.showdown) throw new Error('combat did not end')
+  return current
+}

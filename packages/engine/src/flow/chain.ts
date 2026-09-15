@@ -14,7 +14,7 @@
  */
 
 import { beginExecution, runExecution } from '../effects/interpreter.js'
-import { selectorCount } from '../effects/selector.js'
+import { resolveSelector, selectorCount } from '../effects/selector.js'
 import { hasPassive } from '../effects/oracle.js'
 import type { CardOracle, EngineAbility } from '../effects/oracle.js'
 import type { GameEvent } from '../effects/events.js'
@@ -27,7 +27,13 @@ import type {
   PlayerId,
 } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
-import { deflectCost, payDeflect, targetCandidates, targetChoices } from './targeting.js'
+import {
+  costChoices,
+  deflectCost,
+  payDeflect,
+  targetCandidates,
+  targetChoices,
+} from './targeting.js'
 import { enqueueTriggers } from './triggers.js'
 
 /** Players in a Duel. Passing this many times in a row resolves the top item. */
@@ -227,6 +233,37 @@ function chooseTargets(
 ): GameState | null {
   const ability = findAbility(state, oracle, item.source, item.abilityId)
   if (!ability || ability.notImplemented) return null
+
+  // 355.1.a - an optional additional cost is decided before anything else.
+  const cost = costChoices(ability.steps).find((choice) => !(choice.as in item.bindings))
+  if (cost) {
+    const payable = resolveSelector(state, cost.exhaust, { ...item, oracle }).filter(
+      (id) => state.objects[id]?.exhausted === false,
+    )
+    if (payable.length === 0) {
+      return {
+        ...state,
+        chain: state.chain.map((c) =>
+          c.id === item.id ? { ...c, bindings: { ...c.bindings, [cost.as]: [] } } : c,
+        ),
+      }
+    }
+    events.push({ type: 'choice-required', player: item.controller, binding: cost.as })
+    return {
+      ...state,
+      pendingChoice: {
+        player: item.controller,
+        binding: cost.as,
+        candidates: payable,
+        min: 0,
+        max: 1,
+        optional: true,
+        kind: 'cost',
+        item: item.id,
+      },
+    }
+  }
+
   const step = targetChoices(ability.steps).find((choice) => !(choice.as in item.bindings))
   if (!step) return null
 
@@ -279,16 +316,27 @@ export function answerTargets(
   const item = state.chain.find((c) => c.id === choice?.item)
   if (!choice || !item) return null
 
-  const deflect = chosen.reduce(
-    (total, id) => total + deflectCost(state, oracle, item.controller, id),
-    0,
-  )
+  // Paying an additional cost: exhaust what was chosen (357), nothing more.
+  const objects = { ...state.objects }
+  let deflect = 0
+  if (choice.kind === 'cost') {
+    for (const id of chosen) {
+      const object = objects[id]
+      if (object) objects[id] = { ...object, exhausted: true }
+    }
+  } else {
+    deflect = chosen.reduce(
+      (total, id) => total + deflectCost(state, oracle, item.controller, id),
+      0,
+    )
+  }
   const player = state.players[item.controller]
   const pool = payDeflect(player.runePool, deflect)
   if (!pool) return null
 
   const answered: GameState = {
     ...state,
+    objects,
     pendingChoice: null,
     players: { ...state.players, [item.controller]: { ...player, runePool: pool } },
     chain: state.chain.map((c) =>

@@ -20,6 +20,7 @@ import { z } from 'zod'
 
 import { CARD_TYPES } from '../model/card.js'
 import { DOMAINS } from '../model/domain.js'
+import { KEYWORDS } from '../model/keyword.js'
 
 /**
  * Every Game Action the rulebook defines (413-444).
@@ -212,6 +213,8 @@ export const passiveConditionSchema = z.discriminatedUnion('kind', [
     kind: z.literal('alone-in-combat'),
     role: z.enum(['attacker', 'defender']).optional(),
   }),
+  /** "While I'm at a battlefield": the passive's own source. */
+  z.object({ kind: z.literal('at-battlefield') }),
 ])
 
 export type PassiveCondition = z.infer<typeof passiveConditionSchema>
@@ -252,6 +255,16 @@ export const passiveEffectSchema = z.discriminatedUnion('kind', [
    * ("your spells"); `to` limits it to what is being dealt damage ("units
    * here"). Instances add up (714).
    */
+  /**
+   * "The Energy costs for spells you play are reduced by [1], to a minimum of
+   * [1]" (356.4). The minimum limits only this discount (356.4.e).
+   */
+  z.object({
+    kind: z.literal('spell-cost-reduction'),
+    energy: z.number().int().positive(),
+    minimum: z.number().int().nonnegative(),
+    while: z.array(passiveConditionSchema).optional(),
+  }),
   z.object({
     kind: z.literal('bonus-damage'),
     amount: z.number().int().positive(),
@@ -287,6 +300,8 @@ export const stepConditionSchema = z.discriminatedUnion('kind', [
    * False if nothing was bound, since then nothing was killed.
    */
   z.object({ kind: z.literal('left-board'), target: bindingSchema }),
+  /** "If you do": an earlier choice, such as an optional additional cost, was made. */
+  z.object({ kind: z.literal('chosen'), binding: bindingSchema }),
 ])
 
 export type StepCondition = z.infer<typeof stepConditionSchema>
@@ -385,6 +400,47 @@ const leafStepSchema = z.discriminatedUnion('op', [
     to: z.union([z.enum(['base', 'here']), bindingSchema]),
   }),
 
+  /**
+   * "It gains [Shield 2] this combat": a keyword on the unit until the combat
+   * ends. Values add to any it already has (807.2, 814.2).
+   */
+  z.object({
+    op: z.literal('grant-keyword'),
+    keyword: z.enum(KEYWORDS),
+    value: z.number().int().positive().optional(),
+    target: targetSchema,
+    duration: z.literal('this-combat'),
+  }),
+
+  /**
+   * "They deal damage equal to their Mights to each other": both amounts are
+   * worked out first, then dealt, so neither unit dying changes the other's.
+   */
+  z.object({ op: z.literal('deal-each-other'), a: bindingSchema, b: bindingSchema }),
+
+  /**
+   * "The next time it dies this turn, recall it exhausted instead" - a
+   * replacement effect on its death (438, 370). A Recall is not a Move (456),
+   * and leaves its damage where it is (458.1).
+   */
+  z.object({
+    op: z.literal('recall-instead-of-dying'),
+    target: targetSchema,
+    duration: z.literal('this-turn'),
+  }),
+
+  /**
+   * "As an additional cost to play this, you may exhaust a friendly unit":
+   * chosen and paid as the card is played (355.1.a, 357), not as it resolves.
+   * `as` records what was exhausted, for an `if` with a `chosen` condition.
+   */
+  z.object({
+    op: z.literal('additional-cost'),
+    as: newBindingSchema,
+    exhaust: selectorSchema,
+    optional: z.literal(true),
+  }),
+
   /** "Units you play this turn enter ready." Expires with the turn (317.2.c). */
   z.object({ op: z.literal('units-enter-ready'), duration: z.literal('this-turn') }),
 
@@ -402,7 +458,12 @@ const leafStepSchema = z.discriminatedUnion('op', [
     op: z.literal('give-might'),
     amount: amountSchema,
     target: targetSchema,
-    duration: z.literal('this-turn'),
+    /**
+     * `while-on-board` for card text that gives Might with no duration: it
+     * stays until the unit leaves the board, as a keyword given with no
+     * duration does (801.3.a.3).
+     */
+    duration: z.enum(['this-turn', 'while-on-board']),
     minimum: z.number().int().optional(),
   }),
 

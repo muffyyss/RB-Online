@@ -17,7 +17,8 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
-import { hasLethalDamage, mightOf } from '../effects/might.js'
+import { replaceDeath } from '../effects/death.js'
+import { hasLethalDamage, keywordOn, mightOf } from '../effects/might.js'
 import type { CardOracle } from '../effects/oracle.js'
 import { assignDamage, sumMight } from './damage.js'
 import type { DamageTarget } from './damage.js'
@@ -63,7 +64,7 @@ function assignmentOrder(
   units: readonly GameObject[],
   oracle: CardOracle,
 ): DamageTarget[] {
-  const tank = (unit: GameObject) => oracle.facts(unit.cardId)?.keywords.includes('tank') ?? false
+  const tank = (unit: GameObject) => keywordOn(unit, oracle, 'tank') > 0
   return [...units.filter(tank), ...units.filter((unit) => !tank(unit))].map((unit) =>
     toTarget(state, unit, oracle),
   )
@@ -169,6 +170,8 @@ export function resolveCombatDamage(
 export function killUnit(state: GameState, id: ObjectId, events: GameEvent[]): GameState {
   const object = state.objects[id]
   if (!object) return state
+  const replaced = replaceDeath(state, id, events)
+  if (replaced) return replaced
   const owner = state.players[object.owner]
   events.push({ type: 'killed', target: id })
   const killed: GameState = {
@@ -303,11 +306,12 @@ export function resolveCombatEnd(
     events.push({ type: 'battlefield-controlled', battlefield, player: winner })
   }
 
-  // 466.7 - Combat ends: designations are cleared and the Showdown closes.
+  // 466.7 - Combat ends: designations are cleared and the Showdown closes,
+  // and with it anything given "this combat".
   const cleared = { ...next.objects }
   for (const [id, object] of Object.entries(next.objects)) {
-    if (object.combatRole !== undefined) {
-      const { combatRole: _role, ...rest } = object
+    if (object.combatRole !== undefined || object.keywordsThisCombat !== undefined) {
+      const { combatRole: _role, keywordsThisCombat: _combat, ...rest } = object
       cleared[id] = rest
     }
   }

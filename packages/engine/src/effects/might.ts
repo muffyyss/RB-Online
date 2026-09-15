@@ -10,7 +10,18 @@ import type { CardOracle, EngineAbility } from './oracle.js'
 import { matchesSelector, resolveSelector } from './selector.js'
 import type { Board, SelectorContext } from './selector.js'
 import type { PassiveCondition, PassiveEffect } from './steps.js'
+import type { Cost } from '../model/cost.js'
+import type { Keyword } from '../model/keyword.js'
 import type { GameObject, PlayerId } from '../state/game-state.js'
+
+/**
+ * A keyword's value on this object: printed, plus any given this combat
+ * (807.2, 814.2 add them up). 0 if it has none.
+ */
+export function keywordOn(object: GameObject, oracle: CardOracle, keyword: Keyword): number {
+  const facts = oracle.facts(object.cardId)
+  return (facts ? keywordValue(facts, keyword) : 0) + (object.keywordsThisCombat?.[keyword] ?? 0)
+}
 
 /** Where a passive works: on the board, or a Legend in its Legend Zone. */
 function isActive(object: GameObject): boolean {
@@ -60,6 +71,8 @@ function holds(
       if (condition.atMost !== undefined && count > condition.atMost) return false
       return true
     }
+    case 'at-battlefield':
+      return source.location?.kind === 'battlefield'
     case 'alone-in-combat': {
       const role = unit.combatRole
       if (role === undefined || (condition.role !== undefined && role !== condition.role)) {
@@ -104,14 +117,15 @@ export function mightOf(board: Board, object: GameObject, oracle: CardOracle): n
   if (facts?.might === undefined) return undefined
   const combat =
     object.combatRole === 'attacker'
-      ? keywordValue(facts, 'assault')
+      ? keywordOn(object, oracle, 'assault')
       : object.combatRole === 'defender'
-        ? keywordValue(facts, 'shield')
+        ? keywordOn(object, oracle, 'shield')
         : 0
   return (
     facts.might +
     object.buffs +
     (object.mightThisTurn ?? 0) +
+    (object.mightWhileOnBoard ?? 0) +
     combat +
     passiveMight(board, object, oracle)
   )
@@ -140,4 +154,23 @@ export function bonusDamage(
     total += effect.amount
   }
   return Math.max(0, total)
+}
+
+/**
+ * What a spell actually costs its player to play (356): the printed cost with
+ * every discount in play applied. Each discount's minimum limits only that
+ * discount (356.4.e), so a cost already at or below it is left alone.
+ */
+export function spellCost(board: Board, oracle: CardOracle, player: PlayerId, printed: Cost): Cost {
+  let energy = printed.energy
+  for (const { source, effect } of activePassives(board, oracle, 'spell-cost-reduction')) {
+    if (source.controller !== player) continue
+    if (
+      !(effect.while ?? []).every((condition) => holds(board, condition, source, source, oracle))
+    ) {
+      continue
+    }
+    energy = Math.max(energy - effect.energy, Math.min(energy, effect.minimum))
+  }
+  return energy === printed.energy ? printed : { ...printed, energy }
 }
