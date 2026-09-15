@@ -17,7 +17,7 @@ export default defineCard({
       id: 'en-garde-effect',
       steps: [],
       notImplemented:
-        'needs a Might bonus lasting this turn, and a condition on being the only unit there',
+        'the additional +1 depends on it being the only unit you control there, and steps cannot be conditional yet',
     },
   ],
   text: '[Reaction] (Play any time, even before spells and abilities resolve.) Give a friendly unit +1 [Might] this turn, then an additional +1 [Might] this turn if it is the only unit you control there.',

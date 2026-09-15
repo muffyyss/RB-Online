@@ -105,6 +105,9 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'lecturing-yordle-draw',
       'crackshot-corsair-shot',
       'first-mate-ready',
+      'back-to-back-effect',
+      'stupefy-effect',
+      'ravenbloom-student-empowered',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -260,5 +263,64 @@ describe('OGN triggered abilities in play', () => {
     })
     expect(offered).toEqual(['here'])
     expect(shot.objects.here?.damage).toBe(1)
+  })
+})
+
+describe('OGN Might given this turn', () => {
+  it('OGN-206 Back to Back gives two friendly units +2 each', () => {
+    const start = mainPhase([
+      { id: 'spell', cardId: 'OGN-206', owner: 0, at: 'hand' },
+      { id: 'a', cardId: 'OGN-219', owner: 0, at: base(0) },
+      { id: 'b', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+      { id: 'c', cardId: 'OGN-219', owner: 0, at: base(0) },
+      { id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-1') },
+    ])
+    const played = act(start, { type: 'play-card', player: 0, card: 'spell' })
+    let offered: readonly string[] = []
+    const after = settle(played, (candidates, min) => {
+      offered = candidates
+      expect(min).toBe(2)
+      return ['a', 'b']
+    })
+    expect([...offered].sort()).toEqual(['a', 'b', 'c'])
+    expect(after.objects.a?.mightThisTurn).toBe(2)
+    expect(after.objects.b?.mightThisTurn).toBe(2)
+    expect(after.objects.c?.mightThisTurn).toBeUndefined()
+    expect(after.objects.a?.buffs).toBe(0)
+  })
+
+  it('OGN-095 Stupefy gives a unit -1 this turn and draws 1', () => {
+    const start = mainPhase([
+      { id: 'spell', cardId: 'OGN-095', owner: 0, at: 'hand' },
+      { id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-1') },
+    ])
+    const after = settle(act(start, { type: 'play-card', player: 0, card: 'spell' }))
+    expect(after.objects.foe?.mightThisTurn).toBe(-1)
+    expect(after.players[0].hand).toHaveLength(1)
+  })
+
+  it('OGN-095 Stupefy takes nothing from a 1 Might unit (477.3.b)', () => {
+    const start = mainPhase([
+      { id: 'spell', cardId: 'OGN-095', owner: 0, at: 'hand' },
+      { id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-1') },
+    ])
+    const foe = start.objects.foe
+    if (!foe) throw new Error('missing unit')
+    const weakened = { ...start, objects: { ...start.objects, foe: { ...foe, mightThisTurn: -3 } } }
+    const after = settle(act(weakened, { type: 'play-card', player: 0, card: 'spell' }))
+    expect(after.objects.foe?.mightThisTurn).toBe(-3)
+  })
+
+  it('OGN-103 Ravenbloom Student gets +1 when its player plays a spell', () => {
+    const start = mainPhase([
+      { id: 'student', cardId: 'OGN-103', owner: 0, at: base(0) },
+      { id: 'spell', cardId: 'OGN-085', owner: 0, at: 'hand' }, // Falling Comet, no targets here
+    ])
+    const played = act(start, { type: 'play-card', player: 0, card: 'spell' })
+    expect(played.chain.map((c) => c.abilityId ?? 'spell')).toEqual([
+      'spell',
+      'ravenbloom-student-empowered',
+    ])
+    expect(settle(played).objects.student?.mightThisTurn).toBe(1)
   })
 })

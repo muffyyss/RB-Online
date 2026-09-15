@@ -167,6 +167,22 @@ describe('the Combat Damage Step (465)', () => {
     expect(state.objects.b?.zone).toBe('trash')
   })
 
+  it('counts Might given this turn, on both sides of the exchange', () => {
+    const state = facingOff([
+      { id: 'a', owner: 0, card: 'm2' },
+      { id: 'b', owner: 1, card: 'm3' },
+    ])
+    const a = state.objects.a
+    if (!a) throw new Error('missing unit')
+    const { state: after } = fight({
+      ...state,
+      objects: { ...state.objects, a: { ...a, mightThisTurn: 2 } },
+    })
+    // a is 4 Might: it survives b's 3 and deals 4, which kills b.
+    expect(after.objects.a?.zone).toBe('battlefield')
+    expect(after.objects.b?.zone).toBe('trash')
+  })
+
   it('lets a bigger unit survive a smaller one', () => {
     const { state } = fight(
       facingOff([

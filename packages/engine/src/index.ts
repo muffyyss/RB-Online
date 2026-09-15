@@ -38,6 +38,7 @@ export {
   CONTROL_OPS,
   GAME_ACTIONS,
   IMPLEMENTED_OPS,
+  SELF_BINDING,
   amountSchema,
   bindingSchema,
   effectStepSchema,
@@ -46,6 +47,7 @@ export {
   targetSchema,
   triggerConditionSchema,
 } from './effects/steps.js'
+export { currentMight, hasLethalDamage, mightOf } from './effects/might.js'
 export type {
   Amount,
   ControlOp,

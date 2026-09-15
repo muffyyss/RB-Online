@@ -14,7 +14,7 @@ describe("OGS-008 Gentlemen's Duel", () => {
     })
   })
 
-  it('records the duel, marked as waiting on this-turn Might and mutual damage', () => {
+  it('records the duel, marked as waiting on mutual damage', () => {
     expectRecordedButNotRunnable(card, 'gentlemens-duel-effect', { kind: 'spell', steps: [] })
   })
 })

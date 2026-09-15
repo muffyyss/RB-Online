@@ -3,9 +3,7 @@ import { defineCard } from '../../schema.js'
 /**
  * OGS-006 — transcribed from the printed card.
  *
- * Needs three things the engine does not have: trigger dispatch, a condition on
- * the played spell's cost, and a Might bonus that lasts "this turn" (the `buff`
- * step adds permanent counters, which would be wrong here).
+ * The cost condition reads the spell's printed cost, not what was paid (206).
  */
 export default defineCard({
   id: 'OGS-006',
@@ -23,9 +21,8 @@ export default defineCard({
       kind: 'triggered',
       id: 'lux-illuminated-empowered',
       on: 'spell-played',
-      steps: [],
-      notImplemented:
-        'needs trigger dispatch, a spell-cost condition, and a Might bonus lasting this turn',
+      condition: { kind: 'spell-cost-at-least', energy: 5 },
+      steps: [{ op: 'give-might', amount: 3, target: '$me', duration: 'this-turn' }],
     },
   ],
   text: 'When you play a spell that costs [5] or more, give me +3 [Might] this turn.',

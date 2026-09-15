@@ -93,6 +93,18 @@ export const bindingSchema = z
   .regex(/^\$[a-z][a-z0-9-]*$/, 'a binding looks like `$victim`')
 
 /**
+ * The ability's own source, for card text that says "me" ("give me +3 [M]").
+ *
+ * Always bound, so no step may bind it; see `newBindingSchema`.
+ */
+export const SELF_BINDING = '$me'
+
+/** A binding a step creates. Anything but the reserved `$me`. */
+const newBindingSchema = bindingSchema.refine((name) => name !== SELF_BINDING, {
+  message: '`$me` always means the source and cannot be bound',
+})
+
+/**
  * What a selector picks out.
  *
  * `rune` is separate from `permanent` on purpose: Runes sit on the board but are
@@ -211,6 +223,24 @@ const leafStepSchema = z.discriminatedUnion('op', [
   z.object({ op: z.literal('ready'), target: targetSchema }),
 
   /**
+   * "Give a unit +2 [M] this turn" - a Might modifier, not a Game Action.
+   *
+   * Not `buff`: a Buff is a counter that stays until the unit leaves the board
+   * (702), while this is an arithmetic layer effect (477.3) that expires in the
+   * Expiration Step (317.2.c). `amount` may be negative ("-1 [M]").
+   *
+   * `minimum` is "to a minimum of N": the decrease is limited when it is
+   * applied, and stays at that limited size for the rest of the turn (477.3.b).
+   */
+  z.object({
+    op: z.literal('give-might'),
+    amount: amountSchema,
+    target: targetSchema,
+    duration: z.literal('this-turn'),
+    minimum: z.number().int().optional(),
+  }),
+
+  /**
    * Bind an object for later steps to act on.
    *
    * Targeting never blocks the interpreter: `choose` suspends the ability with a
@@ -220,7 +250,7 @@ const leafStepSchema = z.discriminatedUnion('op', [
    */
   z.object({
     op: z.literal('choose'),
-    as: bindingSchema,
+    as: newBindingSchema,
     from: selectorSchema,
     optional: z.boolean().optional(),
   }),
@@ -246,7 +276,7 @@ export const effectStepSchema: z.ZodType<EffectStep> = z.lazy(() =>
     z.object({
       op: z.literal('for-each'),
       of: selectorSchema,
-      as: bindingSchema,
+      as: newBindingSchema,
       steps: z.array(effectStepSchema),
     }),
   ]),

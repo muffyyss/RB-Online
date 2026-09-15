@@ -17,6 +17,7 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
+import { hasLethalDamage, mightOf } from '../effects/might.js'
 import type { CardOracle } from '../effects/oracle.js'
 import { assignDamage, sumMight } from './damage.js'
 import type { DamageTarget } from './damage.js'
@@ -47,10 +48,7 @@ function unitsAt(
 }
 
 function toTarget(object: GameObject, oracle: CardOracle): DamageTarget {
-  // Buffs each add +1 Might (703). Full layer application arrives with the
-  // continuous-effect system; printed plus buffs is right for now.
-  const printed = oracle.facts(object.cardId)?.might ?? 0
-  return { id: object.id, might: printed + object.buffs, damage: object.damage }
+  return { id: object.id, might: mightOf(object, oracle) ?? 0, damage: object.damage }
 }
 
 function battlefieldById(state: GameState, id: ObjectId): BattlefieldState | undefined {
@@ -142,8 +140,7 @@ export function resolveCombatDamage(
   for (const id of [...ontoDefenders.keys(), ...ontoAttackers.keys()]) {
     const object = next.objects[id]
     if (!object) continue
-    const might = (oracle.facts(object.cardId)?.might ?? 0) + object.buffs
-    if (object.damage > 0 && object.damage >= Math.max(0, might)) {
+    if (hasLethalDamage(object, oracle)) {
       next = killUnit(next, id, events)
     }
   }

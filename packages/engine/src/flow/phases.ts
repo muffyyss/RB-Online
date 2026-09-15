@@ -177,9 +177,16 @@ function expiration(state: GameState, events: GameEvent[]): GameState {
   const objects = { ...state.objects }
   for (const [id, object] of Object.entries(state.objects)) {
     const onBoard = object.zone === 'base' || object.zone === 'battlefield'
+    // 317.2.b - heal all units.
     if (onBoard && object.damage > 0) {
       objects[id] = { ...object, damage: 0 }
       events.push({ type: 'healed', target: id })
+    }
+    // 317.2.c - "this turn" effects expire. After healing, so a unit whose
+    // Might falls back cannot die to damage that is already gone.
+    if (object.mightThisTurn !== undefined) {
+      const { mightThisTurn: _expired, ...rest } = objects[id] ?? object
+      objects[id] = rest
     }
   }
   let next: GameState = { ...state, objects }

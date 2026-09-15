@@ -12,9 +12,11 @@
  * `may` and `for-each` steps suspend and resume correctly at any depth.
  */
 
+import { SELF_BINDING } from './steps.js'
 import type { Amount, EffectStep, Target } from './steps.js'
 import type { CardOracle } from './oracle.js'
 import type { GameEvent } from './events.js'
+import { hasLethalDamage, mightOf } from './might.js'
 import { resolveSelector, selectorCount } from './selector.js'
 import type { SelectorContext } from './selector.js'
 import type { Domain } from '../model/domain.js'
@@ -101,6 +103,10 @@ function moveTo(
   return { ...next, objects: { ...next.objects, [id]: updated } }
 }
 
+function isOnBoard(object: GameObject): boolean {
+  return object.zone === 'base' || object.zone === 'battlefield'
+}
+
 function countByDomain(domains: readonly Domain[]): Partial<Record<Domain, number>> {
   const counts: Partial<Record<Domain, number>> = {}
   for (const domain of domains) counts[domain] = (counts[domain] ?? 0) + 1
@@ -116,14 +122,6 @@ function addPower(
     sum[domain] = (sum[domain] ?? 0) + count
   }
   return sum
-}
-
-/** Current Might: printed plus buff counters, each worth +1 (703). */
-function mightOf(state: GameState, oracle: CardOracle, id: ObjectId): number | undefined {
-  const object = state.objects[id]
-  if (!object) return undefined
-  const printed = oracle.facts(object.cardId)?.might
-  return printed === undefined ? undefined : printed + object.buffs
 }
 
 // ---------------------------------------------------------------------------
@@ -186,17 +184,22 @@ function damage(
 ): GameState {
   const object = state.objects[target]
   if (!object || amount <= 0) return state
-  const total = object.damage + amount
-  let next = withObject(state, target, { damage: total })
+  const next = withObject(state, target, { damage: object.damage + amount })
   events.push({ type: 'damage-dealt', target, amount })
+  return killIfLethal(next, oracle, target, events)
+}
 
-  // 143.2.a - nonzero damage equalling or exceeding Might kills the unit.
-  const might = mightOf(next, oracle, target)
-  if (might !== undefined && total > 0 && total >= might) {
-    next = moveTo(next, target, 'trash')
-    events.push({ type: 'killed', target })
-  }
-  return next
+/** 143.2.a - a unit with nonzero damage equalling or exceeding its Might is killed. */
+function killIfLethal(
+  state: GameState,
+  oracle: CardOracle,
+  id: ObjectId,
+  events: GameEvent[],
+): GameState {
+  const object = state.objects[id]
+  if (!object || !hasLethalDamage(object, oracle)) return state
+  events.push({ type: 'killed', target: id })
+  return moveTo(state, id, 'trash')
 }
 
 // ---------------------------------------------------------------------------
@@ -209,6 +212,12 @@ function targetIds(
   bindings: Readonly<Record<string, readonly ObjectId[]>>,
   ctx: SelectorContext,
 ): readonly ObjectId[] {
+  if (target === SELF_BINDING) {
+    // "Me" is the source while it is on the board. Once it has left, it is a new
+    // object (141.1.b.2), so an ability referring to it does nothing.
+    const source = state.objects[ctx.source]
+    return source && isOnBoard(source) ? [source.id] : []
+  }
   if (typeof target === 'string') return bindings[target] ?? []
   return resolveSelector(state, target, ctx).slice(0, selectorCount(target))
 }
@@ -314,6 +323,29 @@ function runStep(
         if (!object) continue
         next = withObject(next, id, { buffs: object.buffs + amount })
         events.push({ type: 'buffed', target: id, amount })
+      }
+      return { state: next }
+    }
+
+    case 'give-might': {
+      let next = state
+      const amount = amountOf(state, step.amount, ctx)
+      for (const id of resolve(step.target)) {
+        const object = next.objects[id]
+        if (!object || !isOnBoard(object)) continue
+        const might = mightOf(object, oracle)
+        if (might === undefined) continue
+        // 477.3.b - "to a minimum of N" is snapshotted: work out how much of the
+        // decrease applies now, and that is what lasts the rest of the turn. A
+        // unit already below the minimum loses nothing (and gains nothing).
+        const applied =
+          step.minimum !== undefined && amount < 0
+            ? Math.min(0, Math.max(amount, step.minimum - might))
+            : amount
+        next = withObject(next, id, { mightThisTurn: (object.mightThisTurn ?? 0) + applied })
+        events.push({ type: 'might-given', target: id, amount: applied })
+        // 143.2.a - a unit whose Might drops to its damage dies.
+        next = killIfLethal(next, oracle, id, events)
       }
       return { state: next }
     }

@@ -8,6 +8,7 @@
  */
 
 import type { Selector } from './steps.js'
+import { mightOf } from './might.js'
 import type { CardOracle } from './oracle.js'
 import type { GameObject, GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 import { isPermanentType } from '../model/card.js'
@@ -100,11 +101,10 @@ function matchesController(object: GameObject, selector: Selector, ctx: Selector
 
 function matchesMight(object: GameObject, selector: Selector, oracle: CardOracle): boolean {
   if (!selector.might) return true
-  const printed = oracle.facts(object.cardId)?.might
-  if (printed === undefined) return false
-  // Buffs each add +1 Might (703). Full layer application lands with the rest
-  // of the continuous-effect system; printed plus buffs is correct for now.
-  const might = printed + object.buffs
+  const actual = mightOf(object, oracle)
+  if (actual === undefined) return false
+  // Negative Might is treated as 0 when referenced by abilities (143.2.b).
+  const might = Math.max(0, actual)
   const { min, max } = selector.might
   if (min !== undefined && might < min) return false
   if (max !== undefined && might > max) return false

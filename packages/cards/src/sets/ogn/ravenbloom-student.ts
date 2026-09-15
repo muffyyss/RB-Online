@@ -17,9 +17,7 @@ export default defineCard({
       kind: 'triggered',
       id: 'ravenbloom-student-empowered',
       on: 'spell-played',
-      steps: [],
-      notImplemented:
-        'triggered abilities are not dispatched by the engine yet, and needs a Might bonus lasting this turn',
+      steps: [{ op: 'give-might', amount: 1, target: '$me', duration: 'this-turn' }],
     },
   ],
   text: 'When you play a spell, give me +1 [Might] this turn.',

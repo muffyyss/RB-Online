@@ -20,6 +20,8 @@ export type GameEvent =
   | { readonly type: 'killed'; readonly target: ObjectId }
   | { readonly type: 'banished'; readonly target: ObjectId }
   | { readonly type: 'buffed'; readonly target: ObjectId; readonly amount: number }
+  /** Might given this turn; `amount` is what applied, after any minimum (477.3.b). */
+  | { readonly type: 'might-given'; readonly target: ObjectId; readonly amount: number }
   | { readonly type: 'stunned'; readonly target: ObjectId }
   | { readonly type: 'exhausted'; readonly target: ObjectId }
   | { readonly type: 'readied'; readonly target: ObjectId }

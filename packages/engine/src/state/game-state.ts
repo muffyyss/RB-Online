@@ -78,6 +78,14 @@ export interface GameObject {
   readonly damage: number
   /** Buff counters, each worth +1 Might (702, 703). */
   readonly buffs: number
+  /**
+   * Net Might given "this turn" (e.g. +2, or -1 to a minimum of 1).
+   *
+   * Each amount is snapshotted when applied (477.3.b), so a running total is
+   * enough. Expires in the Expiration Step (317.2.c) and goes with the unit if
+   * it leaves the board. Absent means 0.
+   */
+  readonly mightThisTurn?: number
   /** Back side presented; its front is Private information (129.4). */
   readonly faceDown: boolean
   /** The object this is attached to, if any (434). */

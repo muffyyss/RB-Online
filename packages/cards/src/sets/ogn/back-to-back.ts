@@ -15,8 +15,10 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'back-to-back-effect',
-      steps: [],
-      notImplemented: 'needs a Might bonus lasting this turn',
+      steps: [
+        { op: 'choose', as: '$allies', from: { kind: 'unit', controller: 'self', count: 2 } },
+        { op: 'give-might', amount: 2, target: '$allies', duration: 'this-turn' },
+      ],
     },
   ],
   text: '[Reaction] (Play any time, even before spells and abilities resolve.) Give two friendly units each +2 [Might] this turn.',
