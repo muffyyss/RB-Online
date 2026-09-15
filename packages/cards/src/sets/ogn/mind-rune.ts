@@ -4,9 +4,8 @@ import { defineCard } from '../../schema.js'
  * OGN-089 — transcribed from the printed card.
  *
  * Basic Runes print no rules text: their two abilities come from the rules
- * (164.2). Exhausting for [1] works. Recycling for Power is recorded but marked,
- * because recycling the rune as a cost is not implemented — without that it would
- * be free Power.
+ * (164.2). Exhausting adds [1];
+ * recycling it to the bottom of the rune deck adds one Power of its Domain.
  */
 export default defineCard({
   id: 'OGN-089',
@@ -28,7 +27,6 @@ export default defineCard({
       recycleSelf: true,
       keywords: ['reaction'],
       steps: [{ op: 'add', power: ['mind'] }],
-      notImplemented: 'recycling a rune as a cost (164.2.b) is not implemented',
     },
   ],
 })

@@ -396,3 +396,82 @@ describe('cards whose effect is not implemented yet', () => {
     )
   })
 })
+
+describe('recycling the source as a cost (164.2.b, 416)', () => {
+  const runeOracle = oracleFrom({
+    rune: {
+      type: 'rune',
+      name: 'Fury Rune',
+      domains: ['fury'],
+      tags: [],
+      keywords: [],
+      abilities: [
+        {
+          id: 'energy',
+          kind: 'activated',
+          exhaust: true,
+          keywords: ['reaction'],
+          steps: [{ op: 'add', energy: 1 }],
+        },
+        {
+          id: 'power',
+          kind: 'activated',
+          recycleSelf: true,
+          keywords: ['reaction'],
+          steps: [{ op: 'add', power: ['fury'] }],
+        },
+      ],
+    },
+  })
+
+  const scene = (exhausted = false) =>
+    makeState(
+      [
+        { id: 'deck-rune', cardId: 'rune', owner: 0, zone: 'runeDeck' },
+        { id: 'r1', cardId: 'rune', owner: 0, zone: 'base', exhausted },
+      ],
+      { phase: 'main', step: 'main', turnPlayer: 0, priority: 0 },
+    )
+
+  it('adds the Power and puts the rune on the bottom of its rune deck', () => {
+    const result = applyAction(
+      scene(),
+      { type: 'activate-ability', player: 0, source: 'r1', abilityId: 'power' },
+      runeOracle,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.state.players[0].runePool.power).toEqual({ fury: 1 })
+    expect(result.state.players[0].base).not.toContain('r1')
+    expect(result.state.players[0].runeDeck).toEqual(['deck-rune', 'r1'])
+    expect(result.state.objects.r1).toMatchObject({ zone: 'runeDeck', exhausted: false })
+    expect(result.state.objects.r1?.location).toBeUndefined()
+  })
+
+  it('works on an exhausted rune too: recycling does not need it ready', () => {
+    const result = applyAction(
+      scene(true),
+      { type: 'activate-ability', player: 0, source: 'r1', abilityId: 'power' },
+      runeOracle,
+    )
+    expect(result.ok).toBe(true)
+  })
+
+  it('cannot recycle the same rune twice', () => {
+    const first = applyAction(
+      scene(),
+      { type: 'activate-ability', player: 0, source: 'r1', abilityId: 'power' },
+      runeOracle,
+    )
+    if (!first.ok) throw new Error('first recycle failed')
+    const second = applyAction(
+      first.state,
+      { type: 'activate-ability', player: 0, source: 'r1', abilityId: 'power' },
+      runeOracle,
+    )
+    expect(second.ok).toBe(false)
+    expect(legalActions(first.state, 0, runeOracle)).not.toContainEqual(
+      expect.objectContaining({ source: 'r1', abilityId: 'power' }),
+    )
+  })
+})

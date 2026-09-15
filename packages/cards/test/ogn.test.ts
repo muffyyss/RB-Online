@@ -95,6 +95,12 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'body-rune-energy',
       'chaos-rune-energy',
       'order-rune-energy',
+      'fury-rune-power',
+      'calm-rune-power',
+      'mind-rune-power',
+      'body-rune-power',
+      'chaos-rune-power',
+      'order-rune-power',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -181,13 +187,22 @@ describe('Basic Runes (164.2)', () => {
     expect(result.state.players[0].runePool.energy).toBe(1)
   })
 
-  it('refuses the recycle-for-Power ability rather than granting free Power', () => {
+  it.each([
+    ['OGN-007', 'fury'],
+    ['OGN-042', 'calm'],
+    ['OGN-089', 'mind'],
+    ['OGN-126', 'body'],
+    ['OGN-166', 'chaos'],
+    ['OGN-214', 'order'],
+  ])('%s recycles for one Power of its domain', (cardId, domain) => {
     const result = applyAction(
-      withRune('OGN-007'),
-      { type: 'activate-ability', player: 0, source: 'rune', abilityId: 'fury-rune-power' },
+      withRune(cardId),
+      { type: 'activate-ability', player: 0, source: 'rune', abilityId: `${domain}-rune-power` },
       testOracle,
     )
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error.code).toBe('not-implemented')
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.state.players[0].runePool.power).toEqual({ [domain]: 1 })
+    expect(result.state.players[0].runeDeck).toEqual(['rune'])
   })
 })

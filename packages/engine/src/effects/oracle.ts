@@ -34,6 +34,12 @@ export interface EngineAbility {
   readonly cost?: Cost
   /** Exhausting the source is part of the cost - the [E] symbol (135.2.e.2). */
   readonly exhaust?: boolean
+  /**
+   * Recycling the source is part of the cost: it goes to the bottom of its
+   * owner's deck before the ability resolves (416). A Basic Rune's Power ability
+   * (164.2.b).
+   */
+  readonly recycleSelf?: boolean
   readonly keywords?: readonly Keyword[]
   /**
    * Set when the DSL cannot express the printed text in full. The engine

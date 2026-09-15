@@ -18,7 +18,7 @@ import { closeCombat } from '../flow/combat.js'
 import { moveRefusal, performMove } from '../flow/movement.js'
 import { MULLIGAN_LIMIT, beginPlay, performMulligan } from '../flow/setup.js'
 import { advanceFlow, checkWin, endMainPhase, VICTORY_SCORE } from '../flow/phases.js'
-import type { GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
+import type { GameObject, GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
 
 export type GameAction =
@@ -92,6 +92,41 @@ export interface RuleViolation {
 function unimplementedEffect(facts: CardFacts): string | null {
   if (facts.type !== 'spell') return null
   return facts.abilities.find((a) => a.kind === 'spell')?.notImplemented ?? null
+}
+
+/**
+ * Recycle an object from the board to the bottom of its owner's deck (416).
+ *
+ * Runes go to the Rune Deck, Main Deck cards to the Main Deck (416.1.a, 416.1.b),
+ * always the owner's (416.1.c). It leaves the board as a new object in every
+ * sense that matters: no location, readied, no damage or buffs.
+ */
+function recycleFromBoard(state: GameState, id: ObjectId, oracle: CardOracle): GameState {
+  const object = state.objects[id]
+  if (!object) return state
+  const zone = oracle.facts(object.cardId)?.type === 'rune' ? 'runeDeck' : 'mainDeck'
+
+  const { location: _location, ...rest } = object
+  const recycled: GameObject = {
+    ...rest,
+    zone,
+    controller: object.owner,
+    exhausted: false,
+    damage: 0,
+    buffs: 0,
+  }
+
+  // Off the board of whoever controls it...
+  const controller = state.players[object.controller]
+  let players = {
+    ...state.players,
+    [object.controller]: { ...controller, base: controller.base.filter((x) => x !== id) },
+  }
+  // ...and onto the bottom of its owner's deck.
+  const owner = players[object.owner]
+  players = { ...players, [object.owner]: { ...owner, [zone]: [...owner[zone], id] } }
+
+  return { ...state, objects: { ...state.objects, [id]: recycled }, players }
 }
 
 export type ActionResult =
@@ -274,7 +309,7 @@ export function applyAction(
         pool = paid
       }
 
-      const withCost: GameState = {
+      let withCost: GameState = {
         ...state,
         objects: ability.exhaust
           ? { ...state.objects, [action.source]: { ...source, exhausted: true } }
@@ -283,6 +318,16 @@ export function applyAction(
           ...state.players,
           [action.player]: { ...state.players[action.player], runePool: pool },
         },
+      }
+
+      // 416 - recycling the source as a cost puts it on the bottom of its
+      // owner's deck before the ability resolves. Only something on the board
+      // can be recycled this way (416.3: a cost that cannot be paid cannot be).
+      if (ability.recycleSelf) {
+        if (source.zone !== 'base' && source.zone !== 'battlefield') {
+          return reject('cannot-pay', 'that card is not on the board to recycle')
+        }
+        withCost = recycleFromBoard(withCost, action.source, oracle)
       }
 
       const queued = addToChain(withCost, {

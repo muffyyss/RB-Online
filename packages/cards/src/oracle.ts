@@ -27,6 +27,7 @@ function engineAbility(ability: Ability): EngineAbility {
       ...base,
       ...(ability.cost === undefined ? {} : { cost: ability.cost }),
       ...(ability.exhaust === undefined ? {} : { exhaust: ability.exhaust }),
+      ...(ability.recycleSelf === undefined ? {} : { recycleSelf: ability.recycleSelf }),
       ...(ability.keywords === undefined ? {} : { keywords: ability.keywords }),
     }
   }
