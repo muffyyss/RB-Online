@@ -14,6 +14,7 @@
  */
 
 import { beginExecution, runExecution } from '../effects/interpreter.js'
+import { selectorCount } from '../effects/selector.js'
 import { hasPassive } from '../effects/oracle.js'
 import type { CardOracle, EngineAbility } from '../effects/oracle.js'
 import type { GameEvent } from '../effects/events.js'
@@ -26,6 +27,7 @@ import type {
   PlayerId,
 } from '../state/game-state.js'
 import { opponentOf } from '../state/game-state.js'
+import { deflectCost, payDeflect, targetCandidates, targetChoices } from './targeting.js'
 import { enqueueTriggers } from './triggers.js'
 
 /** Players in a Duel. Passing this many times in a row resolves the top item. */
@@ -174,7 +176,12 @@ function resolveItem(
 
   const started = beginExecution(
     drop(state, item.id),
-    { source: item.source, controller: item.controller, steps: ability.steps },
+    {
+      source: item.source,
+      controller: item.controller,
+      steps: ability.steps,
+      targets: item.bindings,
+    },
     oracle,
   )
   events.push(...started.events)
@@ -207,6 +214,91 @@ function finishSpell(state: GameState, oracle: CardOracle, source: ObjectId): Ga
 }
 
 /**
+ * Ask for the next target a Pending item still needs (355.5), if any.
+ *
+ * Returns the state with that choice pending, or with the item updated or
+ * removed when there was nothing to ask; null once every target is chosen.
+ */
+function chooseTargets(
+  state: GameState,
+  oracle: CardOracle,
+  item: ChainItem,
+  events: GameEvent[],
+): GameState | null {
+  const ability = findAbility(state, oracle, item.source, item.abilityId)
+  if (!ability || ability.notImplemented) return null
+  const step = targetChoices(ability.steps).find((choice) => !(choice.as in item.bindings))
+  if (!step) return null
+
+  const pool = state.players[item.controller].runePool
+  const candidates = targetCandidates(state, oracle, step, item, pool)
+  const setBinding = (ids: readonly ObjectId[]): GameState => ({
+    ...state,
+    chain: state.chain.map((c) =>
+      c.id === item.id ? { ...c, bindings: { ...c.bindings, [step.as]: ids } } : c,
+    ),
+  })
+
+  if (candidates.length === 0) {
+    events.push({ type: 'effect-skipped', reason: 'no-targets', detail: step.as })
+    // 355.8 - a triggered ability with a target it cannot choose never makes it
+    // onto the Chain; there is nothing to give a Priority window for. A card or
+    // activated ability was checked before it was played, so only a choice
+    // that hangs on an earlier answer gets here: it goes ahead with nothing.
+    return ability.kind === 'triggered' && step.optional !== true
+      ? drop(state, item.id)
+      : setBinding([])
+  }
+
+  const wanted = selectorCount(step.from)
+  events.push({ type: 'choice-required', player: item.controller, binding: step.as })
+  return {
+    ...state,
+    pendingChoice: {
+      player: item.controller,
+      binding: step.as,
+      candidates,
+      min: step.optional ? 0 : Math.min(wanted, candidates.length),
+      max: Math.min(wanted, candidates.length),
+      optional: step.optional ?? false,
+      item: item.id,
+    },
+  }
+}
+
+/**
+ * Record a target chosen for a Pending item (355.5), paying any Deflect on it
+ * (809), then carry on finalizing. Null if the Deflect cannot be paid.
+ */
+export function answerTargets(
+  state: GameState,
+  chosen: readonly ObjectId[],
+  oracle: CardOracle,
+): ChainResult | null {
+  const choice = state.pendingChoice
+  const item = state.chain.find((c) => c.id === choice?.item)
+  if (!choice || !item) return null
+
+  const deflect = chosen.reduce(
+    (total, id) => total + deflectCost(state, oracle, item.controller, id),
+    0,
+  )
+  const player = state.players[item.controller]
+  const pool = payDeflect(player.runePool, deflect)
+  if (!pool) return null
+
+  const answered: GameState = {
+    ...state,
+    pendingChoice: null,
+    players: { ...state.players, [item.controller]: { ...player, runePool: pool } },
+    chain: state.chain.map((c) =>
+      c.id === item.id ? { ...c, bindings: { ...c.bindings, [choice.binding]: chosen } } : c,
+    ),
+  }
+  return advanceChain(answered, oracle)
+}
+
+/**
  * Drive the Chain until it needs a decision or empties.
  *
  * Returns with either a player holding Priority (they may respond or pass), a
@@ -223,6 +315,12 @@ export function advanceChain(state: GameState, oracle: CardOracle): ChainResult 
     // --- Step 1: Finalize (337) - oldest Pending item first.
     const pending = current.chain.find((item) => item.pending)
     if (pending) {
+      // 355.5 - its targets are chosen first, one choice at a time.
+      const asking = chooseTargets(current, oracle, pending, events)
+      if (asking) {
+        current = asking
+        continue
+      }
       const mark = events.length
       const finalized: ChainItem = { ...pending, pending: false }
       current = {

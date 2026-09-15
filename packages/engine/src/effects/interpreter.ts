@@ -246,8 +246,12 @@ interface StepOutcome {
    * well, it waits on top of the suspended frames for the answer.
    */
   readonly push?: Frame
-  /** A binding to empty, so a step repeated in a loop cannot see an old answer. */
-  readonly unbind?: string
+  /**
+   * A binding to set without asking: emptied when there was nothing to choose,
+   * so a step repeated in a loop cannot see an old answer, or narrowed to the
+   * targets still legal.
+   */
+  readonly bind?: { readonly name: string; readonly ids: readonly ObjectId[] }
 }
 
 /**
@@ -318,13 +322,25 @@ function runStep(
 
   switch (step.op) {
     case 'choose': {
+      // Chosen already, as a target when this went on the Chain (355.5). Only
+      // the targets that are still legal are affected (359.3.e.2, 359.3.e.5):
+      // one that has moved, changed zone or stopped fitting drops out.
+      const targeted = execution.frames.length === 1 ? bindings[step.as] : undefined
+      if (targeted !== undefined) {
+        const legal = resolveSelector(state, step.from, ctx)
+        const still = targeted.filter((id) => legal.includes(id))
+        if (still.length < targeted.length) {
+          events.push({ type: 'effect-skipped', reason: 'no-targets', detail: step.as })
+        }
+        return { state, bind: { name: step.as, ids: still } }
+      }
       const candidates = resolveSelector(state, step.from, ctx)
       const wanted = selectorCount(step.from)
       if (candidates.length === 0) {
         // Do as much as you can, ignoring impossible instructions (Golden/Silver
         // Rules, 054). An empty binding makes dependent steps no-ops.
         events.push({ type: 'effect-skipped', reason: 'no-targets', detail: step.as })
-        return { state, unbind: step.as }
+        return { state, bind: { name: step.as, ids: [] } }
       }
       return {
         state,
@@ -780,7 +796,7 @@ export function runExecution(
       }
     }
 
-    if (outcome.unbind !== undefined) bindings[outcome.unbind] = []
+    if (outcome.bind) bindings[outcome.bind.name] = outcome.bind.ids
 
     if (outcome.push) {
       // A for-each binds its first element before its body runs. `unwind` binds
@@ -802,7 +818,13 @@ export function runExecution(
 /** Begin executing an ability's steps. */
 export function beginExecution(
   state: GameState,
-  params: { source: ObjectId; controller: PlayerId; steps: readonly EffectStep[] },
+  params: {
+    source: ObjectId
+    controller: PlayerId
+    steps: readonly EffectStep[]
+    /** Targets chosen as it was put on the Chain (355.5), by binding name. */
+    targets?: Readonly<Record<string, readonly ObjectId[]>>
+  },
   oracle: CardOracle,
 ): ExecutionResult {
   return runExecution(
@@ -811,7 +833,7 @@ export function beginExecution(
       source: params.source,
       controller: params.controller,
       frames: [{ steps: params.steps, index: 0 }],
-      bindings: {},
+      bindings: params.targets ?? {},
     },
     oracle,
   )

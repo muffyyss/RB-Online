@@ -12,7 +12,14 @@ import type { GameEvent } from '../effects/events.js'
 import { hasPassive } from '../effects/oracle.js'
 import type { CardFacts, CardOracle } from '../effects/oracle.js'
 import { canPay, pay } from '../model/cost.js'
-import { addToChain, advanceChain, passOnChain, resumeResolution } from '../flow/chain.js'
+import {
+  addToChain,
+  advanceChain,
+  answerTargets,
+  passOnChain,
+  resumeResolution,
+} from '../flow/chain.js'
+import { hasTargets, spellSteps } from '../flow/targeting.js'
 import { timingRefusal } from '../flow/timing.js'
 import { settleBoard } from '../flow/cleanup.js'
 import { closeCombat } from '../flow/combat.js'
@@ -84,6 +91,7 @@ export interface RuleViolation {
     | 'already-exhausted'
     | 'illegal-move'
     | 'illegal-location'
+    | 'no-targets'
     | 'not-setup'
     | 'too-many-cards'
     /** The card's effect is recorded but the engine cannot run it yet. */
@@ -271,6 +279,14 @@ export function applyAction(
           return reject('invalid-selection', `${id} was not offered as a candidate`)
         }
       }
+      // A target for an item being put on the Chain (355.5).
+      if (pending.item !== undefined) {
+        const answered = answerTargets(state, action.chosen, oracle)
+        if (!answered) return reject('cannot-pay', 'you cannot pay the Deflect on those targets')
+        const advanced = afterChain(answered, oracle)
+        return { ok: true, state: advanced.state, events: advanced.events }
+      }
+
       const suspended = state.resolving
       if (!suspended) {
         return reject('not-your-choice', 'no suspended effect to resume')
@@ -335,6 +351,11 @@ export function applyAction(
       const paid = pay(cost, facts.domains, pool, target)
       if (!paid) return reject('cannot-pay', 'you cannot pay that cost')
 
+      // 355.8 - it needs something to aim at, Deflect included.
+      if (!hasTargets(state, oracle, spellSteps(facts), action.player, action.card, paid)) {
+        return reject('no-targets', 'there is nothing that card can target')
+      }
+
       // 354 - move the card to the Chain, which Closes the State. Cost is
       // settled before mutating rather than after, which is equivalent because
       // a failed legality check undoes the whole process anyway (358.5).
@@ -398,6 +419,10 @@ export function applyAction(
         const paid = pay(ability.cost, facts.domains, pool)
         if (!paid) return reject('cannot-pay', 'you cannot pay that cost')
         pool = paid
+      }
+
+      if (!hasTargets(state, oracle, ability.steps, action.player, action.source, pool)) {
+        return reject('no-targets', 'there is nothing that ability can target')
       }
 
       let withCost: GameState = {
@@ -573,9 +598,10 @@ export function legalActions(
     if (unimplementedEffect(facts)) continue
     if (timingRefusal(state, player, facts.keywords)) continue
     const cost = facts.cost ?? { energy: 0, power: [] }
-    if (!canPay(cost, facts.domains, state.players[player].runePool, { cardType: facts.type })) {
-      continue
-    }
+    const target = { cardType: facts.type }
+    const paid = pay(cost, facts.domains, state.players[player].runePool, target)
+    if (!paid) continue
+    if (!hasTargets(state, oracle, spellSteps(facts), player, card, paid)) continue
     // One action per place it may enter; Base is the plain play.
     for (const to of playLocations(state, player, facts)) {
       actions.push(
@@ -597,9 +623,11 @@ export function legalActions(
       if (ability.notImplemented) continue
       if (timingRefusal(state, player, ability.keywords ?? [])) continue
       if (ability.exhaust && object.exhausted) continue
-      if (ability.cost && !canPay(ability.cost, facts.domains, state.players[player].runePool)) {
-        continue
-      }
+      const pool = ability.cost
+        ? pay(ability.cost, facts.domains, state.players[player].runePool)
+        : state.players[player].runePool
+      if (!pool) continue
+      if (!hasTargets(state, oracle, ability.steps, player, object.id, pool)) continue
       actions.push({
         type: 'activate-ability',
         player,

@@ -66,6 +66,7 @@ export const IMPLEMENTED_KEYWORDS: readonly Keyword[] = [
   'tank',
   'ganking',
   'vision',
+  'deflect',
 ]
 
 export function isKeyword(value: unknown): value is Keyword {
@@ -83,7 +84,7 @@ export function isImplemented(keyword: Keyword): boolean {
  * as they are implemented rather than guessed at up front. A valued keyword
  * printed without a number has the value 1 (807.1.b.3, 814.1.b.3).
  */
-export const VALUED_KEYWORDS: readonly Keyword[] = ['assault', 'shield']
+export const VALUED_KEYWORDS: readonly Keyword[] = ['assault', 'shield', 'deflect']
 
 export function takesValue(keyword: Keyword): boolean {
   return VALUED_KEYWORDS.includes(keyword)

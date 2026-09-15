@@ -67,6 +67,8 @@ export interface PendingChoiceView {
   readonly max: number
   /** `may` for a yes-or-no question, `predict` for a look at the top card. */
   readonly kind?: 'may' | 'predict'
+  /** The Chain item whose targets are being chosen, if any. */
+  readonly item?: ObjectId
 }
 
 export interface GameView {
@@ -170,6 +172,7 @@ function redactChoice(choice: PendingChoice | null, viewer: PlayerId): PendingCh
     min: choice.min,
     max: choice.max,
     ...(choice.kind === undefined ? {} : { kind: choice.kind }),
+    ...(choice.item === undefined ? {} : { item: choice.item }),
   }
   // That a choice is pending is public — the opponent can see the game waiting.
   // *What* may be chosen is not: candidates can include cards in hand.

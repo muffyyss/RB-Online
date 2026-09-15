@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import card from '../src/sets/ogs/lady-of-luminosity-starter.js'
-import { act, mainPhase, settle } from './support/game.js'
+import { act, field, mainPhase, settle } from './support/game.js'
 
 describe('OGS-021 Lady of Luminosity, Starter', () => {
   it('matches the printed card', () => {
@@ -19,11 +19,15 @@ describe('OGS-021 Lady of Luminosity, Starter', () => {
     mainPhase([
       { id: 'legend', cardId: 'OGS-021', owner: 0, at: 'legendZone' },
       { id: 'spell', cardId: spell, owner: 0, at: 'hand' },
+      // Something for the spell to target, or it could not be played (355.8).
+      { id: 'foe', cardId: 'OGN-088', owner: 1, at: field('bf-0') },
     ])
 
   it('draws 1 when its player plays a spell that costs 5 or more', () => {
     const before = scene('OGN-085') // Falling Comet, 5 Energy
-    const played = act(before, { type: 'play-card', player: 0, card: 'spell' })
+    const cast = act(before, { type: 'play-card', player: 0, card: 'spell' })
+    // It picks its target first (355.5); the trigger joins once it is played.
+    const played = act(cast, { type: 'resolve-choice', player: 0, chosen: ['foe'] })
     expect(played.chain.map((c) => c.abilityId ?? 'spell')).toEqual([
       'spell',
       'lady-of-luminosity-draw',

@@ -164,7 +164,15 @@ describe('FEPR — passing resolves the newest item (339.1, 340.1)', () => {
   it('resolves newest-first when two items are stacked (340.1)', () => {
     // Bolt goes on first, Gift on top. Gift must resolve before Bolt.
     const state = cast(cast(board(), 'bolt-1'), 'gift-1')
-    const { state: ready } = advanceChain(state, oracle)
+    const { state: aiming } = advanceChain(state, oracle)
+    // Bolt picks its target as it goes on the Chain (355.5).
+    const aimed = applyAction(
+      aiming,
+      { type: 'resolve-choice', player: 0, chosen: ['target'] },
+      oracle,
+    )
+    if (!aimed.ok) throw new Error('rejected')
+    const ready = aimed.state
     expect(ready.chain.map((c) => c.source)).toEqual(['bolt-1', 'gift-1'])
 
     const first = applyAction(ready, { type: 'pass', player: 0 }, oracle)
@@ -178,56 +186,83 @@ describe('FEPR — passing resolves the newest item (339.1, 340.1)', () => {
   })
 })
 
-describe('resolution that needs a choice', () => {
-  it('suspends mid-resolution and parks the execution on the state', () => {
-    const state = addToChain(board(), { source: 'bolt-1', controller: 0 })
-    const { state: ready } = advanceChain(state, oracle)
-    const first = applyAction(ready, { type: 'pass', player: 0 }, oracle)
-    if (!first.ok) throw new Error('rejected')
-    const second = applyAction(first.state, { type: 'pass', player: 1 }, oracle)
-    if (!second.ok) throw new Error('rejected')
+describe('targets are chosen as an item goes on the Chain (355.5)', () => {
+  /** Bolt on the Chain, waiting for its target. */
+  const aiming = () => advanceChain({ ...cast(board(), 'bolt-1'), priority: null }, oracle).state
 
-    expect(second.state.pendingChoice).toMatchObject({ player: 0, binding: '$victim' })
-    expect(second.state.resolving).not.toBeNull()
-    // Nothing has happened to the target yet.
-    expect(second.state.objects.target?.damage).toBe(0)
+  it('asks for the target while finalizing, before anyone has Priority', () => {
+    const state = aiming()
+    expect(state.pendingChoice).toMatchObject({
+      player: 0,
+      binding: '$victim',
+      candidates: ['target'],
+      item: state.chain[0]?.id,
+    })
+    expect(state.chain[0]?.pending).toBe(true)
+    expect(state.priority).toBeNull()
+    expect(state.resolving).toBeNull()
   })
 
-  it('resumes and finishes once the choice is answered', () => {
-    const state = cast(board(), 'bolt-1')
-    const { state: ready } = advanceChain(state, oracle)
-    const first = applyAction(ready, { type: 'pass', player: 0 }, oracle)
-    if (!first.ok) throw new Error('rejected')
-    const second = applyAction(first.state, { type: 'pass', player: 1 }, oracle)
-    if (!second.ok) throw new Error('rejected')
-
+  it('keeps the target on the item, where the opponent can see it before reacting', () => {
     const answered = applyAction(
-      second.state,
+      aiming(),
       { type: 'resolve-choice', player: 0, chosen: ['target'] },
       oracle,
     )
-    if (!answered.ok) throw new Error('choice rejected')
-
-    expect(answered.state.objects.target?.damage).toBe(1)
-    expect(answered.state.pendingChoice).toBeNull()
-    expect(answered.state.resolving).toBeNull()
-    expect(answered.state.chain).toHaveLength(0)
-    // Pausing for the choice must not strand the spell on the Chain (133.4.b.1).
-    expect(answered.state.objects['bolt-1']?.zone).toBe('trash')
-    expect(answered.state.players[0].trash).toContain('bolt-1')
+    if (!answered.ok) throw new Error('rejected')
+    expect(answered.state.chain[0]).toMatchObject({
+      pending: false,
+      bindings: { $victim: ['target'] },
+    })
+    expect(answered.state.priority).toBe(0)
+    expect(answered.state.objects.target?.damage).toBe(0) // nothing happens yet
   })
 
-  it('refuses a selection that was never offered', () => {
-    const state = addToChain(board(), { source: 'bolt-1', controller: 0 })
-    const { state: ready } = advanceChain(state, oracle)
-    const first = applyAction(ready, { type: 'pass', player: 0 }, oracle)
+  it('resolves against the chosen target once both players pass, without asking again', () => {
+    const answered = applyAction(
+      aiming(),
+      { type: 'resolve-choice', player: 0, chosen: ['target'] },
+      oracle,
+    )
+    if (!answered.ok) throw new Error('rejected')
+    const first = applyAction(answered.state, { type: 'pass', player: 0 }, oracle)
     if (!first.ok) throw new Error('rejected')
     const second = applyAction(first.state, { type: 'pass', player: 1 }, oracle)
     if (!second.ok) throw new Error('rejected')
 
+    expect(second.state.pendingChoice).toBeNull()
+    expect(second.state.objects.target?.damage).toBe(1)
+    expect(second.state.chain).toHaveLength(0)
+    expect(second.state.objects['bolt-1']?.zone).toBe('trash')
+  })
+
+  it('leaves a target unaffected if it stopped being legal before resolving (359.3.e)', () => {
+    const answered = applyAction(
+      aiming(),
+      { type: 'resolve-choice', player: 0, chosen: ['target'] },
+      oracle,
+    )
+    if (!answered.ok) throw new Error('rejected')
+    // In response, control of the target changes: it is no longer an enemy unit.
+    const target = answered.state.objects.target
+    if (!target) throw new Error('missing target')
+    const switched = {
+      ...answered.state,
+      objects: { ...answered.state.objects, target: { ...target, controller: 0 as const } },
+    }
+    const first = applyAction(switched, { type: 'pass', player: 0 }, oracle)
+    if (!first.ok) throw new Error('rejected')
+    const second = applyAction(first.state, { type: 'pass', player: 1 }, oracle)
+    if (!second.ok) throw new Error('rejected')
+
+    expect(second.state.objects.target?.damage).toBe(0)
+    expect(second.state.objects['bolt-1']?.zone).toBe('trash') // it still resolved
+  })
+
+  it('refuses a selection that was never offered', () => {
     // 'my-unit' is in hand and was never a candidate.
     const bad = applyAction(
-      second.state,
+      aiming(),
       { type: 'resolve-choice', player: 0, chosen: ['my-unit'] },
       oracle,
     )
@@ -236,18 +271,21 @@ describe('resolution that needs a choice', () => {
     expect(bad.error.code).toBe('invalid-selection')
   })
 
-  it('refuses a pass while a choice is pending', () => {
-    const state = addToChain(board(), { source: 'bolt-1', controller: 0 })
-    const { state: ready } = advanceChain(state, oracle)
-    const first = applyAction(ready, { type: 'pass', player: 0 }, oracle)
-    if (!first.ok) throw new Error('rejected')
-    const second = applyAction(first.state, { type: 'pass', player: 1 }, oracle)
-    if (!second.ok) throw new Error('rejected')
-
-    const bad = applyAction(second.state, { type: 'pass', player: 1 }, oracle)
+  it('refuses a pass while a target is being chosen', () => {
+    const bad = applyAction(aiming(), { type: 'pass', player: 0 }, oracle)
     expect(bad.ok).toBe(false)
     if (bad.ok) return
     expect(bad.error.code).toBe('choice-pending')
+  })
+
+  it('refuses to play a spell with nothing to target (355.8)', () => {
+    const state = makeState([{ id: 'bolt-1', cardId: 'bolt', owner: 0, zone: 'hand' }], {
+      priority: 0,
+    })
+    const result = applyAction(state, { type: 'play-card', player: 0, card: 'bolt-1' }, oracle)
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error.code).toBe('no-targets')
   })
 })
 

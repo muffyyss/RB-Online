@@ -206,6 +206,11 @@ export interface PendingChoice {
    * Absent for an ordinary choice of objects.
    */
   readonly kind?: 'may' | 'predict'
+  /**
+   * Set when the choice is a target for this Chain item, made as it is put on
+   * the Chain (355.5). The answer is kept on the item until it resolves.
+   */
+  readonly item?: ObjectId
 }
 
 /** One level of nesting inside a resolving ability: a step list and a cursor. */

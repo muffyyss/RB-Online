@@ -355,6 +355,8 @@ function Chain({ session, view }: { session: MatchSession; view: GameView }) {
       <ol className="chain-items">
         {[...view.chain].reverse().map((item) => {
           const card = getCard(view.objects[item.source]?.cardId ?? '')
+          // Targets are chosen as it goes on the Chain (355.5), so both players see them.
+          const targets = Object.values(item.bindings).flat()
           return (
             <li key={item.id}>
               <strong>{nameOf(view, item.source)}</strong>
@@ -363,6 +365,11 @@ function Chain({ session, view }: { session: MatchSession; view: GameView }) {
                 · {item.controller === session.seat ? 'yours' : 'theirs'}
                 {item.pending ? ' · pending' : ''}
               </span>
+              {targets.length > 0 && (
+                <div className="small">
+                  Targeting {targets.map((id) => nameOf(view, id)).join(', ')}
+                </div>
+              )}
               {card?.text && <div className="small hand-text">{card.text}</div>}
             </li>
           )

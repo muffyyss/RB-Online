@@ -340,9 +340,12 @@ describe('OGN Might given this turn', () => {
   it('OGN-103 Ravenbloom Student gets +1 when its player plays a spell', () => {
     const start = mainPhase([
       { id: 'student', cardId: 'OGN-103', owner: 0, at: base(0) },
-      { id: 'spell', cardId: 'OGN-085', owner: 0, at: 'hand' }, // Falling Comet, no targets here
+      { id: 'spell', cardId: 'OGN-085', owner: 0, at: 'hand' }, // Falling Comet
+      { id: 'foe', cardId: 'OGN-088', owner: 1, at: field('bf-0') }, // something to target
     ])
-    const played = act(start, { type: 'play-card', player: 0, card: 'spell' })
+    const cast = act(start, { type: 'play-card', player: 0, card: 'spell' })
+    // It picks its target first (355.5); the trigger joins once it is played.
+    const played = act(cast, { type: 'resolve-choice', player: 0, chosen: ['foe'] })
     expect(played.chain.map((c) => c.abilityId ?? 'spell')).toEqual([
       'spell',
       'ravenbloom-student-empowered',
@@ -800,5 +803,49 @@ describe('where units are played (355.2), and Vision', () => {
     expect(played.chain[0]).toMatchObject({ source: 'scout', abilityId: 'vision' })
     const after = settle(played, () => [])
     expect(after.objects.scout?.location).toEqual(field('bf-0'))
+  })
+})
+
+describe('OGN-013 Pouty Poro (Deflect)', () => {
+  /** Player 0 holds Incinerate ("Deal 2 to a unit at a battlefield"); Poro is at bf-0. */
+  const scene = (poroOwner: 0 | 1, power: Record<string, number>) => {
+    const state = mainPhase([
+      { id: 'spell', cardId: 'OGS-003', owner: 0, at: 'hand' },
+      { id: 'poro', cardId: 'OGN-013', owner: poroOwner, at: field('bf-0') },
+    ])
+    const player = state.players[0]
+    return {
+      ...state,
+      players: {
+        ...state.players,
+        0: { ...player, runePool: { ...player.runePool, power, universal: 0 } },
+      },
+    }
+  }
+
+  it("charges an opponent's spell 1 Power of any domain to target it (809.1.c)", () => {
+    const cast = act(scene(1, { fury: 1, calm: 1 }), {
+      type: 'play-card',
+      player: 0,
+      card: 'spell',
+    })
+    expect(cast.pendingChoice?.candidates).toEqual(['poro'])
+    // Incinerate itself costs [2] and no Power, so the Power left is the Deflect's to take.
+    const aimed = act(cast, { type: 'resolve-choice', player: 0, chosen: ['poro'] })
+    const left = Object.values(aimed.players[0].runePool.power).reduce((a, n) => a + (n ?? 0), 0)
+    expect(left).toBe(1)
+    expect(settle(aimed).objects.poro?.zone).toBe('trash')
+  })
+
+  it('cannot be targeted by an opponent who cannot pay, so a spell with no other target cannot be played', () => {
+    expect(() => act(scene(1, {}), { type: 'play-card', player: 0, card: 'spell' })).toThrow(
+      /nothing that card can target/,
+    )
+  })
+
+  it("costs nothing for its own controller's spells", () => {
+    const cast = act(scene(0, {}), { type: 'play-card', player: 0, card: 'spell' })
+    const aimed = act(cast, { type: 'resolve-choice', player: 0, chosen: ['poro'] })
+    expect(settle(aimed).objects.poro?.zone).toBe('trash')
   })
 })

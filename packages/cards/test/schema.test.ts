@@ -51,7 +51,7 @@ describe('card schema — keywords', () => {
   })
 
   it('rejects a keyword the engine does not implement', () => {
-    expect(accepts(['deflect'])).toBe(false)
+    expect(accepts(['legion'])).toBe(false)
   })
 })
 
