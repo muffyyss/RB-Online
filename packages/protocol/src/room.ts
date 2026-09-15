@@ -12,6 +12,9 @@
 
 import { z } from 'zod'
 
+import { matchClientMessages } from './match.js'
+import type { MatchServerMessage } from './match.js'
+
 /**
  * Room code characters: capitals and digits without the ones people misread
  * when a code is read out over voice chat — no I/1, no O/0.
@@ -47,6 +50,7 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('room.deck'), deck: deckCodeSchema }),
   z.object({ type: z.literal('room.ready'), ready: z.boolean() }),
   z.object({ type: z.literal('ping') }),
+  ...matchClientMessages,
 ])
 
 export type ClientMessage = z.infer<typeof clientMessageSchema>
@@ -88,6 +92,8 @@ export type RoomClosedReason =
   | 'host-left'
   /** You left it yourself. */
   | 'left'
+  /** Both players were ready: the room is gone and the match has begun. */
+  | 'match-started'
 
 export type ErrorCode =
   | 'bad-message'
@@ -98,10 +104,13 @@ export type ErrorCode =
   | 'not-in-room'
   | 'room-not-found'
   | 'room-full'
-  /** Both players are ready and the match is being set up; only leaving is allowed. */
-  | 'room-locked'
   | 'bad-deck'
   | 'too-many-attempts'
+  /** Finish (or concede) the match you are in first. */
+  | 'in-match'
+  | 'not-in-match'
+  /** The engine refused the action; the message says why. */
+  | 'illegal-action'
   | 'replaced'
 
 export type ServerMessage =
@@ -110,3 +119,4 @@ export type ServerMessage =
   | { readonly type: 'room.closed'; readonly reason: RoomClosedReason }
   | { readonly type: 'error'; readonly code: ErrorCode; readonly message: string }
   | { readonly type: 'pong' }
+  | MatchServerMessage

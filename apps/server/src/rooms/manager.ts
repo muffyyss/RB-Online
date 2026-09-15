@@ -36,7 +36,12 @@ export type DeckCheck = (deck: string) => string | null
 /** A room whose two players are both ready, handed to whoever runs matches. */
 export interface StartingRoom {
   readonly code: string
-  readonly players: readonly { readonly identity: PlayerIdentity; readonly deck: string }[]
+  readonly players: readonly {
+    readonly identity: PlayerIdentity
+    readonly deck: string
+    /** The connection that readied up, so the match can talk to it straight away. */
+    readonly client: RoomClient
+  }[]
 }
 
 export interface RoomManagerOptions {
@@ -53,9 +58,11 @@ export interface RoomManagerOptions {
    * Without a limit a script could sweep codes and drop into strangers' rooms.
    */
   readonly joinAttempts?: { readonly max: number; readonly windowMs: number }
+  /** True while a player is in a match, so they cannot open or join a room meanwhile. */
+  readonly busy?: (playerId: string) => boolean
 }
 
-type LobbyMessage = Exclude<ClientMessage, { type: 'hello' } | { type: 'ping' }>
+type LobbyMessage = Extract<ClientMessage, { type: `room.${string}` }>
 
 interface Seat {
   client: RoomClient
@@ -93,8 +100,10 @@ export class RoomManager {
   private readonly now: () => number
   private readonly onStart: (room: StartingRoom) => void
   private readonly joinAttempts: { readonly max: number; readonly windowMs: number }
+  private readonly busy: (playerId: string) => boolean
 
   constructor(options: RoomManagerOptions) {
+    this.busy = options.busy ?? (() => false)
     this.checkDeck = options.checkDeck
     this.generateCode = options.generateCode ?? generateRoomCode
     this.now = options.now ?? Date.now
@@ -156,6 +165,9 @@ export class RoomManager {
     if (client.identity.kind === 'guest') {
       return this.fail(client, 'guests-cannot-host', 'Guests can join a room but not host one.')
     }
+    if (this.busy(client.identity.id)) {
+      return this.fail(client, 'in-match', 'Finish your current match first.')
+    }
     if (this.roomOfPlayer.has(client.identity.id)) {
       return this.fail(client, 'already-in-room', 'Leave your current room first.')
     }
@@ -170,6 +182,9 @@ export class RoomManager {
 
   private join(client: RoomClient, rawCode: string, deck: string): void {
     const id = client.identity.id
+    if (this.busy(id)) {
+      return this.fail(client, 'in-match', 'Finish your current match first.')
+    }
     if (this.roomOfPlayer.has(id)) {
       return this.fail(client, 'already-in-room', 'Leave your current room first.')
     }
@@ -225,9 +240,7 @@ export class RoomManager {
     const found = this.seatOf(client)
     if (!found) return
     const [room, seat] = found
-    if (room.status === 'starting') {
-      return this.fail(client, 'room-locked', 'The match is already starting.')
-    }
+
     if (!this.acceptDeck(client, deck)) return
     seat.deck = deck
     // Readiness was for the previous deck.
@@ -240,18 +253,25 @@ export class RoomManager {
     const found = this.seatOf(client)
     if (!found) return
     const [room, seat] = found
-    if (room.status === 'starting') {
-      return this.fail(client, 'room-locked', 'The match is already starting.')
-    }
+
     seat.ready = ready
     const status = this.updateStatus(room)
     this.broadcast(room)
 
     if (status === 'starting') {
-      this.onStart({
-        code: room.code,
-        players: room.seats.map((s) => ({ identity: s.client.identity, deck: s.deck })),
-      })
+      // The room has done its job. It closes before the match begins, so both
+      // players are free of the lobby and a finished match leaves no stale room.
+      const players = room.seats.map((s) => ({
+        identity: s.client.identity,
+        deck: s.deck,
+        client: s.client,
+      }))
+      for (const each of room.seats) {
+        this.roomOfPlayer.delete(each.client.identity.id)
+        each.client.send({ type: 'room.closed', reason: 'match-started' })
+      }
+      this.rooms.delete(room.code)
+      this.onStart({ code: room.code, players })
     }
   }
 

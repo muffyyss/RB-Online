@@ -22,9 +22,9 @@ Early build. See [the plan](docs/plan.md) for scope and milestones,
 | M3        | Rules engine — zones, turns, chain, showdowns, scoring | ✅ done                                          |
 | M4        | All 24 Origins: Proving Grounds cards                  | entered + 45 OGN; 4 boxed decks playable as data |
 | M5        | Server — registration, login, guests, admin CLI        | ✅ done                                          |
-| M6        | Match server — room codes, matchmaking, reconnect      | rooms ✅                                         |
+| M6        | Match server — room codes, matchmaking, reconnect      | rooms + matches ✅ (no clocks/replays yet)       |
 | M7        | Client shell — Electron, deck builder                  | first cut                                        |
-| M8        | Game board UI                                          |                                                  |
+| M8        | Game board UI                                          | working text board                               |
 | M9        | Deploy, package, playtest                              |                                                  |
 
 ## Layout

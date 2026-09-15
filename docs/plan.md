@@ -590,6 +590,28 @@ legality check.
 
 ### MatchRoom
 
+**As built (first pass):** `apps/server/src/matches/manager.ts`, protocol in
+`packages/protocol/src/match.ts`.
+
+- A room whose two players are ready closes (`room.closed: match-started`) and the
+  server builds the game from both deck codes with `createGame`. Room seat 0 is
+  engine player 0; who goes first comes from the seed.
+- Each action goes through `applyAction`. The acting seat comes from the
+  connection, never from the message, so a client cannot act for its opponent.
+- After every change each player gets `match.state`: **their own `redactFor`
+  view and their own `legalActions`, and nothing else**. Events are not sent yet,
+  because they can name objects the viewer may not see; snapshots are safe by
+  construction. A test checks the opponent's hand ids never appear in anything
+  sent to the other player.
+- Disconnect: the opponent is told (`match.opponent-away` with a deadline); after
+  60 seconds the away player forfeits. Reconnecting within that window puts them
+  straight back in with a fresh snapshot, so `lastSeenSeq` replay is not needed.
+- A player in a match cannot open or join a room.
+- **Not yet:** clocks, persisting the action log, surviving a server restart,
+  replays. The `onEnd` hook is where persistence attaches.
+
+The original design, for the parts still to come:
+
 One in-process object per active match:
 
 - Serializes actions — one at a time, no concurrency inside the engine.

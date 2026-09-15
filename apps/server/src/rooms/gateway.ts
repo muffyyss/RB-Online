@@ -16,6 +16,7 @@ import { PROTOCOL_VERSION, clientMessageSchema } from '@rb/protocol'
 import type { ErrorCode, PlayerIdentity, ServerMessage } from '@rb/protocol'
 
 import { verifyAccessToken } from '../auth/tokens.js'
+import type { MatchManager } from '../matches/manager.js'
 import type { RoomClient, RoomManager } from './manager.js'
 
 /**
@@ -35,6 +36,7 @@ export const CLOSE = {
 
 export interface GatewayOptions {
   readonly rooms: RoomManager
+  readonly matches: MatchManager
   readonly jwtSecret: string
   /** How long a connection may stay open without saying hello. */
   readonly helloTimeoutMs?: number
@@ -50,7 +52,7 @@ export const gateway: FastifyPluginAsync<GatewayOptions> = (
   app: FastifyInstance,
   options: GatewayOptions,
 ) => {
-  const { rooms, jwtSecret } = options
+  const { rooms, matches, jwtSecret } = options
   const helloTimeoutMs = options.helloTimeoutMs ?? 10_000
   const messageLimit = options.messageLimit ?? { max: 40, windowMs: 10_000 }
 
@@ -134,19 +136,23 @@ export const gateway: FastifyPluginAsync<GatewayOptions> = (
           previous.send({ type: 'error', code: 'replaced', message: 'Connected from elsewhere.' })
           previous.socket.close(CLOSE.replaced, 'replaced')
         }
+        // A player coming back mid-match is sent straight into it.
+        matches.attach(connection)
         return
       }
 
       if (!connection) {
         return closeWith(CLOSE.notAuthenticated, 'not-authenticated', 'Say hello first.')
       }
-      rooms.handle(connection, message)
+      if (message.type === 'match.action') matches.handle(connection, message)
+      else rooms.handle(connection, message)
     })
 
     socket.on('close', () => {
       clearTimeout(helloTimer)
       if (!connection) return
       rooms.disconnect(connection)
+      matches.disconnect(connection)
       if (live.get(connection.identity.id) === connection) live.delete(connection.identity.id)
     })
   })

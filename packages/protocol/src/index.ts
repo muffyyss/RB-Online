@@ -47,3 +47,6 @@ export type {
   SeatView,
   ServerMessage,
 } from './room.js'
+
+export { gameActionSchema } from './match.js'
+export type { MatchEndReason, MatchPlayer, MatchServerMessage } from './match.js'

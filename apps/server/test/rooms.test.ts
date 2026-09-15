@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@rb/protocol'
 import type { PlayerKind, RoomView, ServerMessage } from '@rb/protocol'
 
+import { PROVING_GROUNDS_DECKS } from '@rb/cards'
+import { encodeDeck } from '@rb/engine'
+
 import { checkDeckCode } from '../src/rooms/deck.js'
 import { RoomManager, generateRoomCode } from '../src/rooms/manager.js'
 import type { RoomClient, RoomManagerOptions, StartingRoom } from '../src/rooms/manager.js'
@@ -216,8 +219,8 @@ describe('readying up', () => {
       {
         code,
         players: [
-          { identity: host.identity, deck: DECK },
-          { identity: friend.identity, deck: DECK },
+          { identity: host.identity, deck: DECK, client: host },
+          { identity: friend.identity, deck: DECK, client: friend },
         ],
       },
     ])
@@ -238,19 +241,38 @@ describe('readying up', () => {
     expect(lastRoom(host).seats[0]?.ready).toBe(false)
   })
 
-  it('locks the room once starting, except for leaving', () => {
-    const { host, friend } = pair()
+  it('closes once the match starts, freeing both players and the code', () => {
+    const { host, friend, code } = pair()
     manager.handle(host, { type: 'room.ready', ready: true })
     manager.handle(friend, { type: 'room.ready', ready: true })
 
-    manager.handle(host, { type: 'room.ready', ready: false })
-    expect(lastError(host)).toBe('room-locked')
-    manager.handle(friend, { type: 'room.deck', deck: DECK })
-    expect(lastError(friend)).toBe('room-locked')
+    expect(last(host)).toEqual({ type: 'room.closed', reason: 'match-started' })
+    expect(last(friend)).toEqual({ type: 'room.closed', reason: 'match-started' })
+    expect(manager.size).toBe(0)
 
-    manager.handle(friend, { type: 'room.leave' })
-    expect(last(friend)).toEqual({ type: 'room.closed', reason: 'left' })
-    expect(lastRoom(host).status).toBe('waiting')
+    // The room is gone: its code no longer works, and nobody is still seated.
+    const late = player('Late')
+    manager.handle(late, { type: 'room.join', code, deck: DECK })
+    expect(lastError(late)).toBe('room-not-found')
+    manager.handle(host, { type: 'room.ready', ready: false })
+    expect(lastError(host)).toBe('not-in-room')
+  })
+
+  it('keeps a player who is in a match out of rooms', () => {
+    const playing = new Set(['id-Busy'])
+    build({ busy: (id) => playing.has(id) })
+    const busy = player('Busy')
+    manager.handle(busy, { type: 'room.create', deck: DECK })
+    expect(lastError(busy)).toBe('in-match')
+
+    const host = player('Host')
+    manager.handle(host, { type: 'room.create', deck: DECK })
+    manager.handle(busy, { type: 'room.join', code: lastRoom(host).code, deck: DECK })
+    expect(lastError(busy)).toBe('in-match')
+
+    playing.clear()
+    manager.handle(busy, { type: 'room.join', code: lastRoom(host).code, deck: DECK })
+    expect(lastRoom(busy).yourSeat).toBe(1)
   })
 
   it('requires being in a room', () => {
@@ -315,8 +337,18 @@ describe('leaving', () => {
 })
 
 describe('the server deck check', () => {
-  it('accepts anything that decodes as a deck code', () => {
-    expect(checkDeckCode(DECK)).toBeNull()
+  it('accepts a legal deck, including a boxed one-battlefield starter deck', () => {
+    for (const starter of PROVING_GROUNDS_DECKS) {
+      expect(checkDeckCode(encodeDeck(starter.deck)), starter.id).toBeNull()
+    }
+  })
+
+  it('refuses a deck that decodes but is not legal, and says why', () => {
+    expect(checkDeckCode(DECK)).toMatch(/not legal: unknown card/)
+    const annie = PROVING_GROUNDS_DECKS[0]?.deck
+    if (!annie) throw new Error('missing starter deck')
+    const short = { ...annie, main: annie.main.slice(1) }
+    expect(checkDeckCode(encodeDeck(short))).toMatch(/not legal/)
   })
 
   it('explains a code from another version, and plain junk', () => {

@@ -10,9 +10,11 @@ import { create } from 'zustand'
 
 import { emptyPresetFile } from '@rb/engine'
 import type { PresetFile } from '@rb/engine'
-import type { ErrorCode, RoomView, ServerMessage } from '@rb/protocol'
+import type { ErrorCode, RoomClosedReason, RoomView, ServerMessage } from '@rb/protocol'
 
 import type { AuthState, ConnectionStatus } from '../../shared/bridge.js'
+import { reduceMatch } from '../../shared/match.js'
+import type { MatchSession } from '../../shared/match.js'
 
 export type Screen =
   | { readonly name: 'home' }
@@ -31,8 +33,10 @@ interface State {
   readonly auth: AuthState
   readonly connection: ConnectionStatus
   readonly room: RoomView | null
-  /** The last time the host left or we left; shown once, then cleared. */
-  readonly roomClosed: 'host-left' | 'left' | null
+  /** Why the last room closed; shown once, then cleared. */
+  readonly roomClosed: RoomClosedReason | null
+  /** The match in progress, or just finished and not yet dismissed. */
+  readonly match: MatchSession | null
   readonly notice: Notice | null
   readonly presets: PresetFile
   readonly selectedPresetId: string | null
@@ -45,6 +49,8 @@ interface Actions {
   dismissNotice: () => void
   selectPreset: (id: string | null) => void
   savePresets: (file: PresetFile) => Promise<void>
+  /** Leave the results screen of a finished match. */
+  dismissMatch: () => void
 }
 
 const SELECTED_KEY = 'rb.selectedPreset'
@@ -65,12 +71,14 @@ export const useStore = create<State & Actions>()((set, get) => ({
   connection: 'offline',
   room: null,
   roomClosed: null,
+  match: null,
   notice: null,
   presets: emptyPresetFile(),
   selectedPresetId: rememberedSelection(),
   screen: { name: 'home' },
 
   go: (screen) => set({ screen }),
+  dismissMatch: () => set((state) => (state.match?.ended ? { match: null, roomClosed: null } : {})),
   notify: (message, code) => {
     noticeId += 1
     set({
@@ -109,6 +117,10 @@ function identityOf(auth: AuthState): string {
 
 function handleServerMessage(message: ServerMessage): void {
   const { notify } = useStore.getState()
+  if (message.type.startsWith('match.')) {
+    useStore.setState((state) => ({ match: reduceMatch(state.match, message) }))
+    return
+  }
   switch (message.type) {
     case 'room.state':
       useStore.setState({ room: message.room, roomClosed: null })
@@ -133,11 +145,12 @@ export function connectStore(): void {
       // A token refresh reports the same identity again; only a real change
       // (signing out, a guest registering) ends the room and returns home.
       if (identityOf(auth) === identityOf(state.auth)) return { auth }
-      return { auth, room: null, screen: { name: 'home' } }
+      return { auth, room: null, match: null, screen: { name: 'home' } }
     })
   })
   rb.lobby.onStatus((connection) => {
-    // The server treats a dropped socket as leaving, so the room is gone too.
+    // The server treats a dropped socket as leaving a room, so the room is gone.
+    // A match is not: the seat is held while we reconnect.
     useStore.setState((state) => ({
       connection,
       room: connection === 'online' ? state.room : null,

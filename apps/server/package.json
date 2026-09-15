@@ -19,6 +19,7 @@
     "@fastify/rate-limit": "^10.3.0",
     "@fastify/websocket": "^11.3.0",
     "@node-rs/argon2": "^2.0.2",
+    "@rb/cards": "*",
     "@rb/engine": "*",
     "@rb/protocol": "*",
     "drizzle-orm": "^0.45.2",

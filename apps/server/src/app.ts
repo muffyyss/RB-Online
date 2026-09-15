@@ -13,17 +13,17 @@ import type { FastifyInstance } from 'fastify'
 
 import type { Database } from './auth/register.js'
 import type { Config } from './config.js'
-import { checkDeckCode } from './rooms/deck.js'
 import { gateway } from './rooms/gateway.js'
 import type { GatewayOptions } from './rooms/gateway.js'
-import { RoomManager } from './rooms/manager.js'
+import { createLobby } from './lobby.js'
+import type { Lobby } from './lobby.js'
 import { authRoutes } from './routes/auth.js'
 
 export interface AppOptions {
   readonly db: Database
   readonly config: Config
-  /** Supplied by tests that want to inspect rooms; built fresh otherwise. */
-  readonly rooms?: RoomManager
+  /** Supplied by tests that want to inspect rooms and matches; built fresh otherwise. */
+  readonly lobby?: Lobby
   /** Gateway timing overrides, for tests. */
   readonly gateway?: Pick<GatewayOptions, 'helloTimeoutMs' | 'messageLimit'>
 }
@@ -56,8 +56,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     // Lobby messages are tiny; a large frame is not a lobby message.
     options: { maxPayload: 16 * 1024 },
   })
-  const rooms = options.rooms ?? new RoomManager({ checkDeck: checkDeckCode })
-  await app.register(gateway, { rooms, jwtSecret: config.JWT_SECRET, ...options.gateway })
+  const { rooms, matches } = options.lobby ?? createLobby()
+  await app.register(gateway, { rooms, matches, jwtSecret: config.JWT_SECRET, ...options.gateway })
 
   app.setErrorHandler((error: unknown, request, reply) => {
     const fastifyError = error as { statusCode?: number; code?: string; message?: string }

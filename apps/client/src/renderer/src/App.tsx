@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { Builder } from './screens/Builder.js'
 import { Decks } from './screens/Decks.js'
 import { Home } from './screens/Home.js'
+import { Match } from './screens/Match.js'
 import { RegisterForm } from './screens/Register.js'
 import { Welcome } from './screens/Welcome.js'
 import { useStore } from './store.js'
@@ -37,6 +38,7 @@ function Header() {
   const auth = useStore((s) => s.auth)
   const connection = useStore((s) => s.connection)
   const screen = useStore((s) => s.screen)
+  const inMatch = useStore((s) => s.match !== null)
   const go = useStore((s) => s.go)
   if (auth.kind === 'signed-out') return null
 
@@ -44,7 +46,7 @@ function Header() {
   return (
     <header className="header">
       <div className="brand">Riftbound Online</div>
-      <nav className="tabs">
+      <nav className="tabs" hidden={inMatch}>
         <button
           className={screen.name === 'home' ? 'tab active' : 'tab'}
           onClick={() => go({ name: 'home' })}
@@ -79,6 +81,7 @@ export function App() {
   const ready = useStore((s) => s.ready)
   const auth = useStore((s) => s.auth)
   const screen = useStore((s) => s.screen)
+  const match = useStore((s) => s.match)
 
   if (!ready) return <div className="splash">Loading…</div>
 
@@ -88,6 +91,9 @@ export function App() {
       <main className="content">
         {auth.kind === 'signed-out' ? (
           <Welcome />
+        ) : match ? (
+          // A match takes over the screen until it is dismissed.
+          <Match session={match} />
         ) : screen.name === 'decks' ? (
           <Decks />
         ) : screen.name === 'builder' ? (

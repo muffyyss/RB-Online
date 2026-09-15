@@ -3,6 +3,8 @@ import type { FastifyInstance } from 'fastify'
 import { WebSocket as RealWebSocket } from 'ws'
 import type { WebSocket } from 'ws'
 
+import { PROVING_GROUNDS_DECKS } from '@rb/cards'
+import { encodeDeck } from '@rb/engine'
 import { PROTOCOL_VERSION } from '@rb/protocol'
 import type { ClientMessage, ServerMessage } from '@rb/protocol'
 
@@ -12,7 +14,8 @@ import type { Database } from '../src/auth/register.js'
 import { issueAccessToken } from '../src/auth/tokens.js'
 import type { Config } from '../src/config.js'
 import { CLOSE } from '../src/rooms/gateway.js'
-import { RoomManager } from '../src/rooms/manager.js'
+import { createLobby } from '../src/lobby.js'
+import type { Lobby } from '../src/lobby.js'
 import { TEST_JWT_SECRET } from './support/db.js'
 
 /**
@@ -37,16 +40,20 @@ const config: Config = {
   GUEST_RATE_WINDOW: '1 minute',
 }
 
-// A deck code that decodes; legality is not the room's concern.
-const DECK = 'RB1|legend|champion|3xA|12xR|B1,B2,B3'
+// A real, legal deck: a room that starts a match builds a real game from it.
+const DECK = encodeDeck((PROVING_GROUNDS_DECKS[0] ?? missing()).deck)
+
+function missing(): never {
+  throw new Error('missing starter deck')
+}
 
 let app: FastifyInstance
-let rooms: RoomManager
+let lobby: Lobby
 
 async function start(gateway: AppOptions['gateway'] = {}): Promise<void> {
-  rooms = new RoomManager({ checkDeck: () => null })
+  lobby = createLobby()
   // The lobby never touches the database, so none is provided.
-  app = await buildApp({ db: {} as Database, config, rooms, gateway })
+  app = await buildApp({ db: {} as Database, config, lobby, gateway })
   await app.ready()
 }
 
@@ -166,7 +173,7 @@ describe('authenticating a connection', () => {
     const peer = await connect()
     peer.send({ type: 'room.create', deck: DECK })
     expect(await peer.closed).toBe(CLOSE.notAuthenticated)
-    expect(rooms.size).toBe(0)
+    expect(lobby.rooms.size).toBe(0)
   })
 
   it('closes a connection that never says hello', async () => {
@@ -222,6 +229,70 @@ describe('a room over the wire', () => {
     friend.send({ type: 'room.ready', ready: true })
     expect((await host.until('room.state')).room.status).toBe('full') // host's own ready echo
     expect((await host.until('room.state')).room.status).toBe('starting')
+  })
+
+  it('starts a match when both are ready, and plays it over the wire', async () => {
+    await start()
+    const host = await hello('Host')
+    const friend = await hello('Friend')
+    host.send({ type: 'room.create', deck: DECK })
+    const { room } = await host.until('room.state')
+    friend.send({ type: 'room.join', code: room.code, deck: DECK })
+    await friend.until('room.state')
+    host.send({ type: 'room.ready', ready: true })
+    friend.send({ type: 'room.ready', ready: true })
+
+    expect(await host.until('room.closed')).toEqual({
+      type: 'room.closed',
+      reason: 'match-started',
+    })
+    const started = await host.until('match.started')
+    expect(started.seat).toBe(0)
+    expect((await friend.until('match.started')).seat).toBe(1)
+    const state = await host.until('match.state')
+    expect(state.view.viewer).toBe(0)
+    await friend.until('match.state')
+
+    // Mid-match the players cannot wander off into another room.
+    host.send({ type: 'room.create', deck: DECK })
+    expect(await host.until('error')).toMatchObject({ code: 'in-match' })
+
+    friend.send({
+      type: 'match.action',
+      matchId: started.matchId,
+      action: { type: 'concede', player: 1 },
+    })
+    expect(await host.until('match.ended')).toEqual({
+      type: 'match.ended',
+      matchId: started.matchId,
+      winner: 0,
+      reason: 'concede',
+    })
+    expect(lobby.matches.size).toBe(0)
+  })
+
+  it('puts a reconnecting player back into their match', async () => {
+    await start()
+    const host = await hello('Host')
+    const friend = await hello('Friend')
+    host.send({ type: 'room.create', deck: DECK })
+    const { room } = await host.until('room.state')
+    friend.send({ type: 'room.join', code: room.code, deck: DECK })
+    await friend.until('room.state')
+    host.send({ type: 'room.ready', ready: true })
+    friend.send({ type: 'room.ready', ready: true })
+    const started = await friend.until('match.started')
+    await friend.until('match.state')
+
+    friend.ws.terminate()
+    expect((await host.until('match.opponent-away')).forfeitAt).toEqual(expect.any(Number))
+
+    const back = await connect()
+    back.send({ type: 'hello', protocol: PROTOCOL_VERSION, accessToken: token('Friend') })
+    await back.until('welcome')
+    expect(await back.until('match.started')).toMatchObject({ matchId: started.matchId, seat: 1 })
+    expect((await back.until('match.state')).view.viewer).toBe(1)
+    expect((await host.until('match.opponent-away')).forfeitAt).toBeNull()
   })
 
   it('removes a player who closes the socket cleanly, over a real port', async () => {
