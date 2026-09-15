@@ -13,7 +13,7 @@
  */
 
 import { SELF_BINDING } from './steps.js'
-import type { Amount, EffectStep, Target } from './steps.js'
+import type { Amount, EffectStep, StepCondition, Target } from './steps.js'
 import type { CardOracle } from './oracle.js'
 import type { GameEvent } from './events.js'
 import { hasLethalDamage, mightOf } from './might.js'
@@ -236,9 +236,40 @@ interface StepOutcome {
     readonly min: number
     readonly max: number
     readonly optional: boolean
+    readonly kind?: 'may'
   }
-  /** Frames to push, for steps that contain other steps. */
+  /**
+   * A frame to push, for steps that contain other steps. With a choice as
+   * well, it waits on top of the suspended frames for the answer.
+   */
   readonly push?: Frame
+}
+
+/** Is an `if` step's condition true right now? */
+function conditionHolds(
+  state: GameState,
+  condition: StepCondition,
+  ctx: SelectorContext,
+  bindings: Readonly<Record<string, readonly ObjectId[]>>,
+): boolean {
+  switch (condition.kind) {
+    case 'count': {
+      const count = resolveSelector(state, condition.of, ctx).length
+      if (condition.atLeast !== undefined && count < condition.atLeast) return false
+      if (condition.atMost !== undefined && count > condition.atMost) return false
+      return true
+    }
+    case 'left-board': {
+      const bound = bindings[condition.target] ?? []
+      return (
+        bound.length > 0 &&
+        bound.every((id) => {
+          const object = state.objects[id]
+          return !object || !isOnBoard(object)
+        })
+      )
+    }
+  }
 }
 
 function runStep(
@@ -492,9 +523,29 @@ function runStep(
     }
 
     case 'may': {
-      // Without a decision point of its own, `may` currently runs its steps.
-      // The opt-in prompt arrives with the choice system's boolean prompts.
-      return { state, push: { steps: step.steps, index: 0 } }
+      // Ask the controller. Their answer fills a binding named for this depth,
+      // so a nested `may` cannot read an outer one's answer; the steps wait in
+      // a frame that runs only on yes.
+      const answer = `$may-${String(execution.frames.length)}`
+      return {
+        state,
+        choice: {
+          binding: answer,
+          candidates: [execution.source],
+          min: 0,
+          max: 1,
+          optional: true,
+          kind: 'may',
+        },
+        push: { steps: step.steps, index: 0, onlyIf: answer },
+      }
+    }
+
+    case 'if': {
+      const steps = conditionHolds(state, step.condition, ctx, bindings)
+        ? step.then
+        : (step.else ?? [])
+      return steps.length === 0 ? { state } : { state, push: { steps, index: 0 } }
     }
 
     case 'for-each': {
@@ -580,6 +631,12 @@ export function runExecution(
 
     const top = frames[frames.length - 1]
     if (!top) break
+    // A declined `may`: skip its steps entirely.
+    if (top.onlyIf !== undefined && top.index === 0 && !bindings[top.onlyIf]?.length) {
+      events.push({ type: 'effect-skipped', reason: 'declined', detail: top.onlyIf })
+      frames[frames.length - 1] = { ...top, index: top.steps.length }
+      continue
+    }
     const step = top.steps[top.index]
     if (!step) continue
 
@@ -590,8 +647,10 @@ export function runExecution(
       const suspended: Execution = {
         ...execution,
         bindings,
-        // Resume *after* the choose step; the answer fills its binding.
-        frames: [...advance(frames)],
+        // Resume *after* the choosing step; the answer fills its binding. A
+        // frame that waits on the answer goes on top instead, and its parent is
+        // stepped past when that frame finishes, as for any nested frame.
+        frames: outcome.push ? [...frames, outcome.push] : [...advance(frames)],
       }
       events.push({
         type: 'choice-required',

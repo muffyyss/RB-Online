@@ -45,6 +45,7 @@ export {
   isImplementedOp,
   passiveEffectSchema,
   selectorSchema,
+  stepConditionSchema,
   targetSchema,
   triggerConditionSchema,
 } from './effects/steps.js'
@@ -57,6 +58,7 @@ export type {
   GameActionName,
   PassiveEffect,
   Selector,
+  StepCondition,
   Target,
 } from './effects/steps.js'
 

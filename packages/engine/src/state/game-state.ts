@@ -191,12 +191,23 @@ export interface PendingChoice {
   readonly max: number
   /** Whether the player may decline (a "may" choice). */
   readonly optional: boolean
+  /**
+   * `may`: a yes-or-no question, "you may ...". The only candidate is the
+   * ability's source; choosing it means yes, choosing nothing means no.
+   * Absent for an ordinary choice of objects.
+   */
+  readonly kind?: 'may'
 }
 
 /** One level of nesting inside a resolving ability: a step list and a cursor. */
 export interface Frame {
   readonly steps: readonly EffectStep[]
   readonly index: number
+  /**
+   * Run this frame only if the named binding holds something: the steps of a
+   * `may` wait here until the player has answered yes or no.
+   */
+  readonly onlyIf?: string
   /** Set on a `for-each` frame: what it iterates and where it has got to. */
   readonly loop?: {
     readonly as: string

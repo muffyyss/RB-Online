@@ -78,14 +78,15 @@ function matchesLocation(
     case 'any-battlefield':
       return object.location?.kind === 'battlefield'
     default: {
-      // A bound Battlefield. Unbound (the choice was declined or had no
+      // Where a bound object is. Unbound (the choice was declined or had no
       // candidates) matches nothing, so the dependent step does nothing.
       const chosen = ctx.bindings?.[at]?.[0]
-      return (
-        chosen !== undefined &&
-        object.location?.kind === 'battlefield' &&
-        object.location.id === chosen
-      )
+      if (chosen === undefined) return false
+      // A bound unit: its Location, Base or Battlefield ("there").
+      const bound = state.objects[chosen]
+      if (bound?.location) return sameLocation(object.location, bound.location)
+      // A bound Battlefield.
+      return object.location?.kind === 'battlefield' && object.location.id === chosen
     }
   }
 }
@@ -138,6 +139,12 @@ export function resolveSelector(
       if (!matchesLocation(object, selector, ctx, state)) return false
       if (!matchesMight(object, selector, ctx.oracle)) return false
       if (selector.exhausted !== undefined && object.exhausted !== selector.exhausted) return false
+      if (
+        selector.inCombat !== undefined &&
+        (object.combatRole !== undefined) !== selector.inCombat
+      ) {
+        return false
+      }
       if (selector.other && object.id === ctx.source) return false
       if (selector.tag) {
         const tags = ctx.oracle.facts(object.cardId)?.tags ?? []

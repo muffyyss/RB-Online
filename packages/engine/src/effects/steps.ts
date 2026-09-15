@@ -68,11 +68,11 @@ export type GameActionName = (typeof GAME_ACTIONS)[number]
 /**
  * Control-flow atoms. Ours, not the rulebook's - they sequence Game Actions.
  *
- * There is no `seq`: an ability's steps are already an ordered list. `if-then`
- * and `modal` are not implemented yet and so are not listed; add them here with
- * the schema and interpreter together.
+ * There is no `seq`: an ability's steps are already an ordered list. `modal` is
+ * not implemented yet and so is not listed; add it here with the schema and
+ * interpreter together.
  */
-export const CONTROL_OPS = ['choose', 'may', 'for-each'] as const
+export const CONTROL_OPS = ['choose', 'may', 'for-each', 'if'] as const
 
 export type ControlOp = (typeof CONTROL_OPS)[number]
 
@@ -136,8 +136,9 @@ export const selectorSchema = z.object({
     .union([
       z.enum(['here', 'same-location', 'base', 'any-battlefield', 'anywhere']),
       /**
-       * A Battlefield bound by an earlier `choose`, for "…at a battlefield" text
-       * that picks the Battlefield first and then acts on everything there.
+       * Where a bound object is: a Battlefield bound by an earlier `choose` ("…at
+       * a battlefield"), or the Location of a bound unit ("the only unit you
+       * control there").
        */
       bindingSchema,
     ])
@@ -155,7 +156,9 @@ export const selectorSchema = z.object({
    * "discard 1" (a card in hand). `controller` then means whose zone it is,
    * since a card off the board is controlled by its owner.
    */
-  zone: z.enum(['hand', 'trash']).optional(),
+  zone: z.enum(['hand', 'trash', 'runeDeck']).optional(),
+  /** Only units with an Attacker or Defender designation: "units in combat". */
+  inCombat: z.boolean().optional(),
   /** Only exhausted objects (true) or only ready ones (false). Absent means either. */
   exhausted: z.boolean().optional(),
   /** "Another": never the ability's own source. */
@@ -200,6 +203,31 @@ export type PassiveEffect = z.infer<typeof passiveEffectSchema>
 export const targetSchema = z.union([bindingSchema, selectorSchema])
 
 export type Target = z.infer<typeof targetSchema>
+
+/**
+ * What an `if` step checks, at the moment it runs.
+ *
+ * Deliberately a short list, grown as cards need it.
+ */
+export const stepConditionSchema = z.discriminatedUnion('kind', [
+  /**
+   * How many objects match, e.g. "if it is the only unit you control there"
+   * (`atMost: 1`) or "if you can channel" (a rune left in your Rune Deck).
+   */
+  z.object({
+    kind: z.literal('count'),
+    of: selectorSchema,
+    atLeast: z.number().int().nonnegative().optional(),
+    atMost: z.number().int().nonnegative().optional(),
+  }),
+  /**
+   * "If this kills it": the object bound earlier is no longer on the board.
+   * False if nothing was bound, since then nothing was killed.
+   */
+  z.object({ kind: z.literal('left-board'), target: bindingSchema }),
+])
+
+export type StepCondition = z.infer<typeof stepConditionSchema>
 
 /** A number that is either fixed, or counted from the board at resolution time. */
 export const amountSchema = z.union([
@@ -315,10 +343,16 @@ const leafStepSchema = z.discriminatedUnion('op', [
 
 type LeafStep = z.infer<typeof leafStepSchema>
 
-/** A step, including the two that nest other steps. */
+/** A step, including the ones that nest other steps. */
 export type EffectStep =
   | LeafStep
   | { readonly op: 'may'; readonly steps: readonly EffectStep[] }
+  | {
+      readonly op: 'if'
+      readonly condition: StepCondition
+      readonly then: readonly EffectStep[]
+      readonly else?: readonly EffectStep[] | undefined
+    }
   | {
       readonly op: 'for-each'
       readonly of: Selector
@@ -329,7 +363,18 @@ export type EffectStep =
 export const effectStepSchema: z.ZodType<EffectStep> = z.lazy(() =>
   z.union([
     leafStepSchema,
+    /**
+     * "You may ...": the ability's controller answers yes or no, and the steps
+     * run only on yes.
+     */
     z.object({ op: z.literal('may'), steps: z.array(effectStepSchema) }),
+    /** "If ..., ... (otherwise ...)", checked when the step is reached. */
+    z.object({
+      op: z.literal('if'),
+      condition: stepConditionSchema,
+      then: z.array(effectStepSchema),
+      else: z.array(effectStepSchema).optional(),
+    }),
     z.object({
       op: z.literal('for-each'),
       of: selectorSchema,
@@ -344,6 +389,7 @@ export const IMPLEMENTED_OPS: readonly string[] = [
   ...leafStepSchema.options.map((option) => option.shape.op.value),
   'may',
   'for-each',
+  'if',
 ]
 
 export function isImplementedOp(op: string): boolean {

@@ -15,8 +15,15 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'disintegrate-effect',
-      steps: [],
-      notImplemented: 'the "if this kills it, draw 1" condition cannot be expressed yet',
+      steps: [
+        { op: 'choose', as: '$victim', from: { kind: 'unit', at: 'any-battlefield' } },
+        { op: 'deal', amount: 3, target: '$victim' },
+        {
+          op: 'if',
+          condition: { kind: 'left-board', target: '$victim' },
+          then: [{ op: 'draw', amount: 1 }],
+        },
+      ],
     },
   ],
   text: '[Action] (Play on your turn or in showdowns.) Deal 3 to a unit at a battlefield. If this kills it, draw 1.',

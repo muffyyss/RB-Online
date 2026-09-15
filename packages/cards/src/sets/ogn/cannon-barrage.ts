@@ -15,8 +15,14 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'cannon-barrage-effect',
-      steps: [],
-      notImplemented: 'selectors cannot yet pick out units in combat',
+      steps: [
+        {
+          op: 'for-each',
+          of: { kind: 'unit', controller: 'opponent', inCombat: true },
+          as: '$enemy',
+          steps: [{ op: 'deal', amount: 2, target: '$enemy' }],
+        },
+      ],
     },
   ],
   text: '[Reaction] (Play any time, even before spells and abilities resolve.) Deal 2 to all enemy units in combat.',

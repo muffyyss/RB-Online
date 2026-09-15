@@ -15,9 +15,20 @@ export default defineCard({
     {
       kind: 'spell',
       id: 'en-garde-effect',
-      steps: [],
-      notImplemented:
-        'the additional +1 depends on it being the only unit you control there, and steps cannot be conditional yet',
+      steps: [
+        { op: 'choose', as: '$unit', from: { kind: 'unit', controller: 'self' } },
+        { op: 'give-might', amount: 1, target: '$unit', duration: 'this-turn' },
+        {
+          op: 'if',
+          // Counting it too: "the only unit you control there" is a count of 1.
+          condition: {
+            kind: 'count',
+            of: { kind: 'unit', controller: 'self', at: '$unit' },
+            atMost: 1,
+          },
+          then: [{ op: 'give-might', amount: 1, target: '$unit', duration: 'this-turn' }],
+        },
+      ],
     },
   ],
   text: '[Reaction] (Play any time, even before spells and abilities resolve.) Give a friendly unit +1 [Might] this turn, then an additional +1 [Might] this turn if it is the only unit you control there.',

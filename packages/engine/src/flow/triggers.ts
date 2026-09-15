@@ -137,11 +137,17 @@ function hitsFor(
         if (object.controller === event.player) add(object, 'end-of-turn')
       return hits
 
-    // Conquer and Hold effects (383.4.c, 383.4.d): a unit that was there ("when
-    // I conquer"), or anything else that refers to the player ("when you conquer").
+    // Conquer and Hold effects (383.4.c, 383.4.d): the Battlefield itself ("when
+    // you hold here", controlled by whoever scored it), a unit that was there
+    // ("when I conquer"), or anything else that refers to the player ("when you
+    // conquer").
     case 'scored': {
       const on = event.method === 'conquer' ? 'conquer' : 'hold'
       for (const object of objects) {
+        if (oracle.facts(object.cardId)?.type === 'battlefield') {
+          if (object.id === event.battlefield) add(object, on, event.player)
+          continue
+        }
         if (object.controller !== event.player) continue
         if (isUnit(object, oracle) && !atBattlefield(object, event.battlefield)) continue
         add(object, on)

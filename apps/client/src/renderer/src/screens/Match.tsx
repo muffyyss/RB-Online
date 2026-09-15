@@ -215,6 +215,28 @@ function Choice(props: { session: MatchSession; view: GameView }) {
           : current,
     )
   const ok = picked.length >= choice.min && picked.length <= choice.max
+  const answer = (chosen: readonly ObjectId[]) => {
+    send(session, { type: 'resolve-choice', player: session.seat, chosen })
+    setPicked([])
+  }
+
+  // "You may ...": the only candidate is the source; choosing it means yes.
+  if (choice.kind === 'may') {
+    const offered = choice.candidates
+    const source = offered[0]
+    return (
+      <div className="card choice">
+        <h2>Use {source === undefined ? 'this ability' : nameOf(view, source)}?</h2>
+        <div className="choice-options">
+          <button className="primary" onClick={() => answer(offered)}>
+            Yes
+          </button>
+          <button onClick={() => answer([])}>No</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="card choice">
       <h2>
@@ -229,14 +251,7 @@ function Choice(props: { session: MatchSession; view: GameView }) {
           </label>
         ))}
       </div>
-      <button
-        className="primary"
-        disabled={!ok}
-        onClick={() => {
-          send(session, { type: 'resolve-choice', player: session.seat, chosen: picked })
-          setPicked([])
-        }}
-      >
+      <button className="primary" disabled={!ok} onClick={() => answer(picked)}>
         Confirm
       </button>
     </div>

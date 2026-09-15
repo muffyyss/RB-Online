@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyAction, beginExecution } from '@rb/engine'
+import { advanceFlow, applyAction, beginExecution } from '@rb/engine'
 import type { GameState } from '@rb/engine'
 
 import { getCard } from '../src/registry.js'
 import { OGN_CARDS } from '../src/sets/ogn/index.js'
 import { makeState } from '../../engine/test/support/state.js'
-import { act, base, field, mainPhase, settle } from './support/game.js'
+import { act, base, field, mainPhase, oracle, settle } from './support/game.js'
 import { attackInto } from './support/combat.js'
 import { board, resolveSpell, testOracle } from './support/play.js'
 
@@ -115,6 +115,11 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'morbid-return-effect',
       'traveling-merchant-trade',
       'stormclaw-ursine-channel',
+      'startipped-peak-channel',
+      'mobilize-effect',
+      'disintegrate-effect',
+      'en-garde-effect',
+      'cannon-barrage-effect',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {
@@ -479,5 +484,132 @@ describe('OGN cards that move cards between zones', () => {
     expect(after.objects['rune-a']).toMatchObject({ zone: 'base', exhausted: true })
     expect(after.players[0].runeDeck).toEqual(['rune-b'])
     expect(after.players[0].base).toContain('rune-a')
+  })
+})
+
+describe('OGN cards with a choice to make or a condition to check', () => {
+  /** Player 0's Scoring Step, holding bf-0 as Startipped Peak with a unit there. */
+  const holdingPeak = (): GameState => {
+    const start = mainPhase([
+      { id: 'guard', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+      { id: 'rune-a', cardId: 'OGN-126', owner: 0, at: 'runeDeck' },
+    ])
+    const peak = start.objects['bf-0']
+    if (!peak) throw new Error('missing battlefield')
+    return {
+      ...start,
+      objects: { ...start.objects, 'bf-0': { ...peak, cardId: 'OGN-288' } },
+      battlefields: start.battlefields.map((bf) =>
+        bf.id === 'bf-0' ? { ...bf, controller: 0 as const } : bf,
+      ),
+      phase: 'beginning',
+      step: 'scoring',
+      stepTaskDone: false,
+      priority: null,
+    }
+  }
+
+  it('OGN-288 Startipped Peak: when you hold here, you may channel 1 rune exhausted', () => {
+    const held = advanceFlow(holdingPeak(), oracle).state
+    expect(held.chain[0]).toMatchObject({ source: 'bf-0', abilityId: 'startipped-peak-channel' })
+
+    let asking = held
+    while (!asking.pendingChoice) {
+      asking = act(asking, { type: 'pass', player: asking.priority ?? 0 })
+    }
+    // A yes-or-no question to the player who held it, about the Peak itself.
+    expect(asking.pendingChoice).toMatchObject({
+      player: 0,
+      kind: 'may',
+      candidates: ['bf-0'],
+      min: 0,
+      max: 1,
+    })
+    const yes = settle(asking, (candidates) => candidates)
+    expect(yes.objects['rune-a']).toMatchObject({ zone: 'base', exhausted: true })
+  })
+
+  it('OGN-288 Startipped Peak channels nothing when its player declines', () => {
+    const held = advanceFlow(holdingPeak(), oracle).state
+    const no = settle(held, () => [])
+    // Not channelled exhausted by the Peak: the turn then reaches its Channel
+    // Phase, which channels it ready as usual (430.2.a).
+    expect(no.phase).toBe('main')
+    expect(no.objects['rune-a']).toMatchObject({ zone: 'base', exhausted: false })
+  })
+
+  it('OGN-134 Mobilize channels 1 rune exhausted, or draws 1 if it cannot', () => {
+    const withRune = mainPhase([
+      { id: 'mobilize', cardId: 'OGN-134', owner: 0, at: 'hand' },
+      { id: 'rune-a', cardId: 'OGN-126', owner: 0, at: 'runeDeck' },
+    ])
+    const channelled = settle(act(withRune, { type: 'play-card', player: 0, card: 'mobilize' }))
+    expect(channelled.objects['rune-a']).toMatchObject({ zone: 'base', exhausted: true })
+    expect(channelled.players[0].hand).toEqual([])
+
+    const noRunes = mainPhase([{ id: 'mobilize', cardId: 'OGN-134', owner: 0, at: 'hand' }])
+    const drew = settle(act(noRunes, { type: 'play-card', player: 0, card: 'mobilize' }))
+    expect(drew.players[0].hand).toHaveLength(1)
+  })
+
+  it('OGN-005 Disintegrate deals 3, and draws 1 only if that kills the unit', () => {
+    const cast = (victim: string) =>
+      settle(
+        act(
+          mainPhase([
+            { id: 'spell', cardId: 'OGN-005', owner: 0, at: 'hand' },
+            { id: 'victim', cardId: victim, owner: 1, at: field('bf-0') },
+          ]),
+          { type: 'play-card', player: 0, card: 'spell' },
+        ),
+      )
+    const survived = cast('OGN-219') // 4 Might
+    expect(survived.objects.victim?.damage).toBe(3)
+    expect(survived.players[0].hand).toEqual([])
+
+    const killed = cast('OGN-013') // 2 Might
+    expect(killed.objects.victim?.zone).toBe('trash')
+    expect(killed.players[0].hand).toHaveLength(1)
+  })
+
+  it('OGN-046 En Garde gives +1, and +1 more if the unit is the only one its player controls there', () => {
+    const cast = (extra: Parameters<typeof mainPhase>[0]) =>
+      settle(
+        act(
+          mainPhase([
+            { id: 'spell', cardId: 'OGN-046', owner: 0, at: 'hand' },
+            { id: 'duelist', cardId: 'OGN-219', owner: 0, at: field('bf-0') },
+            ...extra,
+          ]),
+          { type: 'play-card', player: 0, card: 'spell' },
+        ),
+        () => ['duelist'],
+      )
+    // Alone, apart from an enemy (who does not count).
+    expect(
+      cast([{ id: 'foe', cardId: 'OGN-219', owner: 1, at: field('bf-0') }]).objects.duelist
+        ?.mightThisTurn,
+    ).toBe(2)
+    // Another friendly unit there: only the first +1.
+    expect(
+      cast([{ id: 'friend', cardId: 'OGN-219', owner: 0, at: field('bf-0') }]).objects.duelist
+        ?.mightThisTurn,
+    ).toBe(1)
+  })
+
+  it('OGN-127 Cannon Barrage deals 2 to each enemy unit in combat, and no other', () => {
+    const start = mainPhase([
+      { id: 'attacker', cardId: 'OGN-088', owner: 0, at: base(0) },
+      { id: 'barrage', cardId: 'OGN-127', owner: 0, at: 'hand' },
+      { id: 'fighting', cardId: 'OGN-088', owner: 1, at: field('bf-0') },
+      { id: 'elsewhere', cardId: 'OGN-088', owner: 1, at: field('bf-1') },
+    ])
+    const moved = act(start, { type: 'move', player: 0, units: ['attacker'], to: field('bf-0') })
+    expect(moved.showdown?.combat).toBe(true)
+    const played = act(moved, { type: 'play-card', player: 0, card: 'barrage' })
+    const after = settle(played)
+    expect(after.objects.fighting?.damage).toBe(2)
+    expect(after.objects.elsewhere?.damage).toBe(0)
+    expect(after.objects.attacker?.damage).toBe(0)
   })
 })
