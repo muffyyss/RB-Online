@@ -86,8 +86,9 @@ export function App() {
   if (!ready) return <div className="splash">Loading…</div>
 
   return (
-    <div className="app">
-      <Header />
+    // A match owns the whole window: no header above it, no padding around it.
+    <div className={`app ${match ? 'in-match' : ''}`}>
+      {!match && <Header />}
       <main className="content">
         {auth.kind === 'signed-out' ? (
           <Welcome />

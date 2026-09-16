@@ -111,8 +111,10 @@ button.rb-card {
   border-radius: 6px;
 }
 
-/* With the face showing, the frame's words would only sit on top of it. */
-.rb-card.has-art .rb-card-frame {
+/* With the face showing, the frame's words would only sit on top of it, and a
+ * card turned sideways already says it is exhausted. */
+.rb-card.has-art .rb-card-frame,
+.rb-card.has-art .rb-card-tag {
   display: none;
 }
 
@@ -267,8 +269,8 @@ button.rb-card {
 
 .rb-card.is-exhausted {
   transform: rotate(90deg) scale(0.84);
-  /* Turned sideways it is wider than its box, so it needs the room. */
-  margin-inline: 14px;
+  /* Turned sideways it is as wide as it is tall, so it needs the room. */
+  margin-inline: calc(var(--card-w) * 0.2);
   filter: saturate(0.72) brightness(0.86);
 }
 
@@ -303,6 +305,11 @@ button.rb-card.is-exhausted:hover {
 }
 
 /* ---- the mat ------------------------------------------------------------ */
+
+/* In the app the mat is the window; nothing sits above or around it. */
+.app.in-match .content {
+  padding: 0;
+}
 
 .mat {
   position: relative;
