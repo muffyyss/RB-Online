@@ -1,14 +1,16 @@
 /**
  * The playmat, laid out like the printed one.
  *
- * The middle of the mat is the Battlefield Zone: one column per Battlefield,
- * the card itself on the line between the players, and above and below it the
- * two Battle Zones where each player's units at that Battlefield stand. Behind
- * each player is their Base with their Main Deck beside it, then their Runes
- * with the Rune Deck and Trash at the edges; the Legend and Hero (the Champion
- * Zone) flank their own Battle Zone. A score track from 0 to 8 runs down each
- * player's edge, starting at their end. The two players face each other, so
- * the far side is the near one mirrored.
+ * Each player has the same three rows as the printed mat — their Battlefield
+ * area nearest the middle, their Base behind it, their Runes nearest them —
+ * with the Legend and Hero (the Champion Zone) beside the Battlefield area, the
+ * Main Deck beside the Base, and the Rune Deck and Trash beside the Runes. A
+ * score track from 0 to 8 runs down the outer edge. The two players face each
+ * other, so the far side is the near one turned around.
+ *
+ * Inside the Battlefield area each Battlefield has its own cell: the card in a
+ * slot of its own, and beside it the units this player has at that Battlefield
+ * — a Battlefield is a Location, and what stands there is not the card.
  *
  * Everything shown is exactly what the server sent — the client decides nothing
  * about the rules — and every button on it is an action the server said is
@@ -16,19 +18,11 @@
  */
 
 import { useEffect, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import { cardFullName, cardOracle, getCard } from '@rb/cards'
 import { mightOf } from '@rb/engine'
-import type {
-  BattlefieldState,
-  GameAction,
-  GameObject,
-  GameView,
-  Location,
-  ObjectId,
-  PlayerId,
-} from '@rb/engine'
+import type { GameAction, GameObject, GameView, Location, ObjectId, PlayerId } from '@rb/engine'
 
 import {
   abilitiesOf,
@@ -116,8 +110,6 @@ function Zone(props: {
   label: string
   children?: ReactNode
   wide?: boolean
-  /** Room for one card, centred: the Battlefield slots in the middle row. */
-  slot?: boolean
   tone?: 'held' | 'lost' | 'fighting' | undefined
   /** The far player's areas are named along their top edge, not their bottom. */
   flip?: boolean
@@ -125,7 +117,6 @@ function Zone(props: {
   const classes = [
     'zone',
     props.wide ? 'zone--wide' : '',
-    props.slot ? 'zone--slot' : '',
     props.tone ? `zone--${props.tone}` : '',
     props.flip ? 'zone--flip' : '',
   ]
@@ -202,11 +193,13 @@ function Piece(props: { mat: MatHandle; id: ObjectId; hands: Hands }) {
 }
 
 /**
- * One player's own rows, behind the battle.
+ * One player's half of the mat, laid out as the printed one lays it out.
  *
- * They run from the middle of the table outwards: the Base with the Main Deck
- * beside it, then the Runes with the Rune Deck and Trash at the edges. The far
- * player's rows are the near one's mirror, as they are across a table.
+ * Three rows, read from the middle of the table outwards: the Battlefield area
+ * with the Legend and Hero beside it, then the Base with the Main Deck, then
+ * the Runes with the Rune Deck and Trash at the edges. A score track from 0 to
+ * 8 runs down the outer edge. The far player's half is the near one turned
+ * around, as it is across a table.
  */
 function Half(props: { mat: MatHandle; player: PlayerId; hands: Hands }) {
   const { mat, player, hands } = props
@@ -218,6 +211,57 @@ function Half(props: { mat: MatHandle; player: PlayerId; hands: Hands }) {
   const base = objectsAt(view, { kind: 'base', player })
   const pieces = (ids: readonly ObjectId[]) =>
     ids.map((id) => <Piece key={id} mat={mat} id={id} hands={hands} />)
+
+  /*
+   * The Battlefield area holds one cell per Battlefield (107.2.a). Inside a
+   * cell the Battlefield card has its own slot and the units this player has
+   * there stand beside it — a Battlefield is a Location, and the units at it
+   * are not the card (107.2.b). The card sits on the side of the player who
+   * brought it, where it is put on the table. Both halves lay the cells out in
+   * the same order, so a Battlefield is in the same place on screen for both
+   * players and your units read as facing theirs across it.
+   */
+  const cells = view.battlefields
+  const battlefields = (
+    <div className="mat-row">
+      <Zone label="Battlefield" wide flip={flip}>
+        {cells.map((bf) => {
+          const card = view.objects[bf.id]
+          const tone =
+            view.showdown?.battlefield === bf.id
+              ? 'fighting'
+              : bf.controller === undefined
+                ? undefined
+                : bf.controller === mat.session.seat
+                  ? 'held'
+                  : 'lost'
+          const units = objectsAt(view, { kind: 'battlefield', id: bf.id }).filter(
+            (id) => view.objects[id]?.controller === player,
+          )
+          return (
+            <div
+              key={bf.id}
+              className={`bf ${tone ? `bf--${tone}` : ''} ${flip ? 'bf--flip' : ''}`}
+            >
+              {card?.owner === player && (
+                <div className="bf-slot">
+                  <Card cardId={card.cardId} size="board" onHover={hands.onHover} />
+                </div>
+              )}
+              <div className="bf-units">{pieces(units)}</div>
+              <span className="bf-name">{nameOf(view, bf.id)}</span>
+            </div>
+          )
+        })}
+      </Zone>
+      <Zone label="Legend" flip={flip}>
+        {pieces(p.legendZone.cards ?? [])}
+      </Zone>
+      <Zone label="Hero" flip={flip}>
+        {pieces(p.championZone.cards ?? [])}
+      </Zone>
+    </div>
+  )
 
   const bases = (
     <div className="mat-row">
@@ -259,111 +303,23 @@ function Half(props: { mat: MatHandle; player: PlayerId; hands: Hands }) {
 
   return (
     <div className={`mat-half ${mine ? 'mat-half--mine' : 'mat-half--theirs'}`}>
-      {mine ? (
-        <>
-          {bases}
-          {runes}
-        </>
-      ) : (
-        <>
-          {runes}
-          {bases}
-        </>
-      )}
-    </div>
-  )
-}
-
-/**
- * The middle of the mat, where the two players meet.
- *
- * A Battlefield and a Battle Zone are not the same area. The Battlefield cards
- * sit in the Battlefield Zone between the players (107.2), and each Battlefield
- * is a Location (107.2.b) — the units a player has there stand in that player's
- * own Battle Zone, on their side of it. So a column is one Battlefield: their
- * units above the card, ours below it, which is how the two sides meet. Each
- * player's Legend and Hero flank their own Battle Zone.
- */
-function Middle(props: { mat: MatHandle; hands: Hands }) {
-  const { mat, hands } = props
-  const view = mat.view
-  const me = mat.session.seat
-  const them: PlayerId = me === 0 ? 1 : 0
-  const pieces = (ids: readonly ObjectId[]) =>
-    ids.map((id) => <Piece key={id} mat={mat} id={id} hands={hands} />)
-
-  // Before setup the Battlefield Zone is empty; keep one column so the middle
-  // of the mat still reads as the middle of a mat.
-  const columns: readonly (BattlefieldState | null)[] =
-    view.battlefields.length > 0 ? view.battlefields : [null]
-
-  /** One player's units at one Battlefield — their side of that column. */
-  const battleZone = (player: PlayerId, bf: BattlefieldState | null, key: string) => (
-    <Zone
-      key={key}
-      label="Battle zone"
-      tone={bf && view.showdown?.battlefield === bf.id ? 'fighting' : undefined}
-      flip={player !== me}
-    >
-      {bf &&
-        pieces(
-          objectsAt(view, { kind: 'battlefield', id: bf.id }).filter(
-            (id) => view.objects[id]?.controller === player,
-          ),
+      <ScoreTrack points={p.points} flip={flip} />
+      <div className="mat-rows">
+        {mine ? (
+          <>
+            {battlefields}
+            {bases}
+            {runes}
+          </>
+        ) : (
+          <>
+            {runes}
+            {bases}
+            {battlefields}
+          </>
         )}
-    </Zone>
-  )
-
-  /** The Battlefield card itself, named on the side of the player who brought it. */
-  const battlefield = (bf: BattlefieldState | null, key: string) => (
-    <Zone
-      key={key}
-      label="Battlefield"
-      slot
-      flip={bf !== null && view.objects[bf.id]?.owner !== me}
-      tone={
-        bf === null
-          ? undefined
-          : view.showdown?.battlefield === bf.id
-            ? 'fighting'
-            : bf.controller === undefined
-              ? undefined
-              : bf.controller === me
-                ? 'held'
-                : 'lost'
-      }
-    >
-      {bf && <Card cardId={view.objects[bf.id]?.cardId} size="board" onHover={hands.onHover} />}
-    </Zone>
-  )
-
-  const legends = (player: PlayerId) => {
-    const p = view.players[player]
-    const flip = player !== me
-    return [
-      <Zone key="legend" label="Legend" flip={flip}>
-        {pieces(p.legendZone.cards ?? [])}
-      </Zone>,
-      <Zone key="hero" label="Hero" flip={flip}>
-        {pieces(p.championZone.cards ?? [])}
-      </Zone>,
-    ]
-  }
-
-  return (
-    <section className="mat-mid" style={{ '--columns': columns.length } as CSSProperties}>
-      <div className="mat-mid-row mat-mid-row--theirs">
-        {legends(them).reverse()}
-        {columns.map((bf, i) => battleZone(them, bf, `their-${String(i)}`))}
       </div>
-      <div className="mat-mid-row mat-mid-row--fields">
-        {columns.map((bf, i) => battlefield(bf, `field-${String(i)}`))}
-      </div>
-      <div className="mat-mid-row mat-mid-row--mine">
-        {columns.map((bf, i) => battleZone(me, bf, `my-${String(i)}`))}
-        {legends(me)}
-      </div>
-    </section>
+    </div>
   )
 }
 
@@ -749,16 +705,8 @@ export function Playmat(props: { mat: MatHandle; onDismiss?: (() => void) | unde
       )}
 
       <Rail mat={mat} player={them} />
-      <div className="mat-body">
-        {/* Each track runs the length of its own player's edge, from their end. */}
-        <ScoreTrack points={view.players[me].points} />
-        <div className="mat-field">
-          <Half mat={mat} player={them} hands={hands} />
-          <Middle mat={mat} hands={hands} />
-          <Half mat={mat} player={me} hands={hands} />
-        </div>
-        <ScoreTrack points={view.players[them].points} flip />
-      </div>
+      <Half mat={mat} player={them} hands={hands} />
+      <Half mat={mat} player={me} hands={hands} />
       <Rail mat={mat} player={me} />
 
       <ChainRail mat={mat} />

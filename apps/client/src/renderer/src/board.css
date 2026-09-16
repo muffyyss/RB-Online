@@ -15,12 +15,13 @@
   --gold-line: #b8974e;
   --gold-faint: #6f5a2e;
   /*
-   * One card width for the whole mat, taken from the window's height, so both
-   * halves and your hand fit without scrolling and grow together on a bigger
-   * window. Areas reserve room from it too, which is why it lives here rather
-   * than on the card.
+   * One card width for the whole mat, taken from the window's height, so the
+   * six rows of areas and your hand fit without scrolling and grow together on
+   * a bigger window — a maximised window draws the cards about twice the size
+   * of a small one. Areas reserve room from it too, which is why it lives here
+   * rather than on the card.
    */
-  --board-card: clamp(38px, 5.9vh, 88px);
+  --board-card: clamp(44px, 7.4vh, 148px);
 }
 
 /* ---- domains ------------------------------------------------------------ */
@@ -99,7 +100,7 @@ button.rb-card {
 }
 
 .rb-card--hand {
-  --card-w: clamp(56px, 8.8vh, 120px);
+  --card-w: clamp(62px, 8.2vh, 150px);
 }
 .rb-card--tiny {
   --card-w: clamp(30px, 5vh, 66px);
@@ -110,7 +111,7 @@ button.rb-card {
 
 /* A Battlefield is printed landscape. */
 .rb-card--wide {
-  --card-w: clamp(60px, 8.6vh, 120px);
+  --card-w: clamp(64px, 10.4vh, 200px);
   aspect-ratio: 1.395;
 }
 .rb-card--wide.rb-card--tiny {
@@ -327,11 +328,11 @@ button.rb-card.is-exhausted:hover {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   min-height: 100vh;
-  max-width: 1720px;
+  max-width: 2200px;
   margin: 0 auto;
-  padding: 6px 12px 4px;
+  padding: 3px 10px;
   background: #0c1116;
 }
 
@@ -339,7 +340,7 @@ button.rb-card.is-exhausted:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 10px;
+  padding: 1px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: #121821;
@@ -358,7 +359,7 @@ button.rb-card.is-exhausted:hover {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 2px 10px;
+  padding: 0 10px;
   border: 1px solid transparent;
   border-radius: var(--radius);
 }
@@ -403,33 +404,28 @@ button.rb-card.is-exhausted:hover {
   margin-left: auto;
 }
 
-/* ---- the mat, edge to edge ---------------------------------------------- */
+/* ---- the two halves ----------------------------------------------------- */
 
-.mat-body {
-  display: flex;
-  flex: 1;
-  gap: 8px;
-  min-height: 0;
-}
-.mat-field {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* One player's own rows, behind their Battle Zone. */
 .mat-half {
   display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+/* The far player's mat is the near one turned around, as it is across a table. */
+.mat-half--theirs {
+  flex-direction: row-reverse;
+}
+.mat-half--theirs .mat-row {
+  flex-direction: row-reverse;
+}
+
+.mat-rows {
+  display: flex;
   flex: 1;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-}
-/* The far player's mat is the near one mirrored, as it is across a table. */
-.mat-half--theirs .mat-row {
-  flex-direction: row-reverse;
 }
 
 .mat-row {
@@ -437,56 +433,24 @@ button.rb-card.is-exhausted:hover {
   align-items: stretch;
   gap: 8px;
   flex: 1;
+  min-height: 0;
 }
 
-/* ---- the middle, where the two sides meet ------------------------------- */
-
-/*
- * A column per Battlefield: their Battle Zone, the Battlefield card, ours. The
- * three rows share one column track, so a unit always sits directly across the
- * Battlefield from whatever it is facing. Two card-wide tracks at each end hold
- * the Legend and Hero — the far player's at the far end, ours at ours — and
- * both the Battlefield row and our row start after the first two.
- */
-.mat-mid {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.mat-mid-row {
-  display: grid;
-  grid-template-columns:
-    repeat(2, var(--slot))
-    repeat(var(--columns, 1), minmax(0, 1fr))
-    repeat(2, var(--slot));
-  align-items: stretch;
-  gap: 8px;
-  --slot: calc(var(--board-card, 60px) + 18px);
-}
-.mat-mid-row--theirs,
-.mat-mid-row--mine {
-  flex: 1;
-}
-.mat-mid-row--fields > :first-child,
-.mat-mid-row--mine > :first-child {
-  grid-column-start: 3;
-}
-
-/* The score track down a player's own edge. */
+/* The score track down the outer edge. */
 .score {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
   gap: 2px;
-  width: 24px;
+  width: 22px;
   padding: 2px 0;
 }
 .score-step {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
   border: 1px solid var(--gold-faint);
   border-radius: 50%;
   font-size: 10px;
@@ -497,6 +461,83 @@ button.rb-card.is-exhausted:hover {
   background: linear-gradient(180deg, var(--gold-strong), var(--gold));
   color: #1a1206;
   font-weight: 700;
+}
+
+/* ---- the Battlefield area ----------------------------------------------- */
+
+/*
+ * One cell per Battlefield inside the area. The card has a slot of its own and
+ * the units this player has at that Battlefield stand beside it: a Battlefield
+ * is a Location, and what is standing there is not the card. Cells are in the
+ * same order for both players, so a cell is the same Battlefield on both sides.
+ */
+.bf {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 6px;
+  border-radius: 8px;
+}
+.bf + .bf {
+  border-left: 1px dashed var(--gold-faint);
+}
+.bf-slot {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 3px;
+  background:
+    linear-gradient(var(--gold-line), var(--gold-line)) top left / 10px 1px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) top left / 1px 10px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) top right / 10px 1px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) top right / 1px 10px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) bottom left / 10px 1px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) bottom left / 1px 10px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) bottom right / 10px 1px no-repeat,
+    linear-gradient(var(--gold-line), var(--gold-line)) bottom right / 1px 10px no-repeat;
+}
+.bf-units {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+/* Which Battlefield this cell is, in the mat's own lettering. */
+.bf-name {
+  position: absolute;
+  top: 1px;
+  right: 8px;
+  max-width: 60%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-faint);
+}
+.bf--flip .bf-name {
+  top: auto;
+  bottom: 1px;
+}
+
+/* Who holds this Battlefield, and whether it is being fought over. */
+.bf--held {
+  background: rgba(63, 184, 175, 0.07);
+}
+.bf--lost {
+  background: rgba(224, 96, 90, 0.07);
+}
+.bf--fighting {
+  background: rgba(227, 162, 59, 0.1);
 }
 
 /* ---- an area of the mat ------------------------------------------------- */
@@ -513,16 +554,6 @@ button.rb-card.is-exhausted:hover {
 .zone--wide {
   flex: 1;
   min-width: 0;
-}
-/* The Battlefield card's own slot: card-sized, centred on its column. */
-.zone--slot {
-  justify-self: center;
-  min-width: 0;
-}
-.zone--slot .zone-cards {
-  justify-content: center;
-  min-height: 0;
-  overflow: visible;
 }
 .zone-cards {
   display: flex;
@@ -605,8 +636,8 @@ button.rb-card.is-exhausted:hover {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 13.2vh;
-  padding: 2px 0;
+  min-height: 12vh;
+  padding: 0;
 }
 .mat-hand-card {
   position: relative;
@@ -639,18 +670,22 @@ button.rb-card.is-exhausted:hover {
 
 /* ---- panels over the mat ------------------------------------------------ */
 
+/*
+ * The Chain reads across the top of the mat, above the far player's Runes,
+ * rather than down a side — the sides are where the cards are, and the cards
+ * are bigger than the Chain is important.
+ */
 .mat-chain {
   position: fixed;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
-  width: clamp(170px, 16vw, 230px);
-  max-height: 60vh;
-  overflow-y: auto;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(76vw, 1100px);
+  overflow-x: auto;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px;
   border: 1px solid var(--gold);
   border-radius: var(--radius);
   background: rgba(14, 19, 26, 0.94);
@@ -660,7 +695,12 @@ button.rb-card.is-exhausted:hover {
 .mat-chain-item {
   display: flex;
   gap: 8px;
-  align-items: flex-start;
+  align-items: center;
+  flex: 0 0 auto;
+  max-width: 280px;
+}
+.mat-chain > .label {
+  flex: 0 0 auto;
 }
 
 .mat-actions,

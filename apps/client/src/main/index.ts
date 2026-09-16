@@ -79,7 +79,12 @@ function createWindow(): BrowserWindow {
     },
   })
 
-  window.once('ready-to-show', () => window.show())
+  // The board draws the cards from the window's height, so a bigger window is
+  // bigger cards: open on the whole screen and let the player shrink it.
+  window.once('ready-to-show', () => {
+    window.maximize()
+    window.show()
+  })
 
   // No popups and no navigating away: this window only ever shows our UI.
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
