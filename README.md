@@ -24,7 +24,7 @@ Early build. See [the plan](docs/plan.md) for scope and milestones,
 | M5        | Server — registration, login, guests, admin CLI        | ✅ done                                                             |
 | M6        | Match server — room codes, matchmaking, reconnect      | rooms + matches ✅ (no clocks/replays yet)                          |
 | M7        | Client shell — Electron, deck builder                  | first cut                                                           |
-| M8        | Game board UI                                          | playmat with real card faces; no animation yet                      |
+| M8        | Game board UI                                          | printed-mat layout, real card faces; no animation yet               |
 | M9        | Deploy, package, playtest                              |                                                                     |
 
 ## Layout

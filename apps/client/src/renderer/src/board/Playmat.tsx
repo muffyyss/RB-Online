@@ -1,18 +1,20 @@
 /**
- * The playmat.
+ * The playmat, laid out like the printed one.
  *
- * Laid out the way the two players sit: their side across the table, the
- * Battlefields contested in the middle, your side nearest you, your hand along
- * the bottom. Everything shown is exactly what the server sent — the client
- * decides nothing about the rules — and every button on it is an action the
- * server said is legal.
+ * Each player has the same three rows — their Battlefield nearest the middle,
+ * their Base behind it, their Runes nearest them — with the Legend and Hero
+ * (the Champion Zone) beside the Battlefield, the Main Deck beside the Base,
+ * and the Rune Deck and Trash beside the Runes. A score track from 0 to 8 runs
+ * down the outer edge. The two players face each other, so the far side is the
+ * near one mirrored.
  *
- * Interaction is one idea: pick a card, then choose from what it can do. That
- * keeps playing to a battlefield, moving and activating abilities in one place
- * rather than scattering buttons across the board.
+ * Everything shown is exactly what the server sent — the client decides nothing
+ * about the rules — and every button on it is an action the server said is
+ * legal. Interaction is one idea: pick a card, then choose what it does.
  */
 
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { cardFullName, cardOracle, getCard } from '@rb/cards'
 import { mightOf } from '@rb/engine'
@@ -41,6 +43,13 @@ export interface MatHandle {
   readonly session: MatchSession
   readonly view: GameView
   readonly send: (action: GameAction) => void
+}
+
+/** Picking a card, and reading one: the two things every card on the mat does. */
+interface Hands {
+  readonly picked: ObjectId | null
+  readonly onPick: (id: ObjectId | null) => void
+  readonly onHover: (cardId: string | null) => void
 }
 
 function nameOf(view: GameView, id: ObjectId): string {
@@ -85,18 +94,75 @@ function abilityLabel(abilityId: string): string {
   return abilityId.replace(/-/g, ' ')
 }
 
+const isRune = (view: GameView, id: ObjectId) =>
+  getCard(view.objects[id]?.cardId ?? '')?.type === 'rune'
+
 // ---------------------------------------------------------------------------
-// Pieces of the mat
+// The furniture of the mat
 // ---------------------------------------------------------------------------
 
-function Piece(props: {
-  mat: MatHandle
-  id: ObjectId
-  picked: ObjectId | null
-  onPick: (id: ObjectId | null) => void
-  onHover: (cardId: string | null) => void
+/** An outlined area, named along its edge as the printed mat names them. */
+function Zone(props: {
+  label: string
+  children?: ReactNode
+  wide?: boolean
+  tone?: 'held' | 'lost' | 'fighting' | undefined
+  /** The far player's areas are named along their top edge, not their bottom. */
+  flip?: boolean
 }) {
-  const { mat, id } = props
+  const classes = [
+    'zone',
+    props.wide ? 'zone--wide' : '',
+    props.tone ? `zone--${props.tone}` : '',
+    props.flip ? 'zone--flip' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return (
+    <div className={classes}>
+      <div className="zone-cards">{props.children}</div>
+      <span className="zone-label">{props.label}</span>
+    </div>
+  )
+}
+
+/** A pile: its top card if anyone may see it, a back if not, and how many. */
+function Pile(props: {
+  label: string
+  count: number
+  view: GameView
+  onHover: (cardId: string | null) => void
+  top?: ObjectId | undefined
+  flip?: boolean
+}) {
+  const top = props.top === undefined ? undefined : props.view.objects[props.top]
+  return (
+    <div className={`zone zone--pile ${props.flip ? 'zone--flip' : ''}`}>
+      <div className="zone-cards">
+        {props.count > 0 && <Card cardId={top?.cardId} size="board" onHover={props.onHover} />}
+      </div>
+      <span className="zone-count">{props.count}</span>
+      <span className="zone-label">{props.label}</span>
+    </div>
+  )
+}
+
+/** The score track down the outer edge: 0 to 8, filled up to where they are. */
+function ScoreTrack({ points, flip }: { points: number; flip?: boolean }) {
+  const steps = Array.from({ length: VICTORY_SCORE + 1 }, (_, i) => i)
+  return (
+    <div className="score">
+      {(flip ? steps : [...steps].reverse()).map((step) => (
+        <span key={step} className={`score-step ${step <= points ? 'is-reached' : ''}`}>
+          {step}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function Piece(props: { mat: MatHandle; id: ObjectId; hands: Hands }) {
+  const { mat, id, hands } = props
   const object = mat.view.objects[id]
   if (!object) return null
   const choosing = mat.view.pendingChoice?.candidates?.includes(id) === true
@@ -113,185 +179,147 @@ function Piece(props: {
       damage={object.damage}
       role={object.combatRole}
       keywords={keywordsOf(object)}
-      selected={props.picked === id}
+      selected={hands.picked === id}
       playable={choosing || actions > 0}
       targeted={aimedAt}
-      onClick={() => props.onPick(props.picked === id ? null : id)}
-      onHover={props.onHover}
+      onClick={() => hands.onPick(hands.picked === id ? null : id)}
+      onHover={hands.onHover}
     />
   )
 }
 
-function Row(props: {
-  mat: MatHandle
-  title: string
-  ids: readonly ObjectId[]
-  picked: ObjectId | null
-  onPick: (id: ObjectId | null) => void
-  onHover: (cardId: string | null) => void
-  tight?: boolean
-}) {
+/**
+ * One player's half of the mat.
+ *
+ * The rows run from the middle of the table outwards, so the near player's read
+ * from the Battlefield down to their Runes and the far player's is its mirror.
+ */
+function Half(props: { mat: MatHandle; player: PlayerId; hands: Hands }) {
+  const { mat, player, hands } = props
+  const mine = player === mat.session.seat
+  const view = mat.view
+  const p = view.players[player]
+  const flip = !mine
+
+  // Each player contributes a Battlefield, and it sits on their side (485.4).
+  const contributed = view.battlefields.filter((bf) => view.objects[bf.id]?.owner === player)
+  const base = objectsAt(view, { kind: 'base', player })
+  const pieces = (ids: readonly ObjectId[]) =>
+    ids.map((id) => <Piece key={id} mat={mat} id={id} hands={hands} />)
+
+  const battlefields = (
+    <div className="mat-row">
+      {contributed.length === 0 && <Zone label="Battlefield" wide flip={flip} />}
+      {contributed.map((bf) => {
+        const here = objectsAt(view, { kind: 'battlefield', id: bf.id })
+        const tone =
+          view.showdown?.battlefield === bf.id
+            ? 'fighting'
+            : bf.controller === undefined
+              ? undefined
+              : bf.controller === mat.session.seat
+                ? 'held'
+                : 'lost'
+        return (
+          <Zone key={bf.id} label="Battlefield" wide tone={tone} flip={flip}>
+            <Card cardId={view.objects[bf.id]?.cardId} size="board" onHover={hands.onHover} />
+            {pieces(here)}
+          </Zone>
+        )
+      })}
+      <Zone label="Legend" flip={flip}>
+        {pieces(p.legendZone.cards ?? [])}
+      </Zone>
+      <Zone label="Hero" flip={flip}>
+        {pieces(p.championZone.cards ?? [])}
+      </Zone>
+    </div>
+  )
+
+  const bases = (
+    <div className="mat-row">
+      <Zone label="Base" wide flip={flip}>
+        {pieces(base.filter((id) => !isRune(view, id)))}
+      </Zone>
+      <Pile
+        label="Main deck"
+        count={p.mainDeck.count}
+        view={view}
+        onHover={hands.onHover}
+        flip={flip}
+      />
+    </div>
+  )
+
+  const runes = (
+    <div className="mat-row">
+      <Pile
+        label="Runes deck"
+        count={p.runeDeck.count}
+        view={view}
+        onHover={hands.onHover}
+        flip={flip}
+      />
+      <Zone label="Runes" wide flip={flip}>
+        {pieces(base.filter((id) => isRune(view, id)))}
+      </Zone>
+      <Pile
+        label="Trash"
+        count={p.trash.count}
+        top={p.trash.cards?.[0]}
+        view={view}
+        onHover={hands.onHover}
+        flip={flip}
+      />
+    </div>
+  )
+
   return (
-    <div className={`mat-row ${props.tight ? 'mat-row--tight' : ''}`}>
-      <span className="mat-row-label">{props.title}</span>
-      <div className="mat-row-cards">
-        {props.ids.length === 0 ? (
-          <span className="mat-empty">empty</span>
+    <div className={`mat-half ${mine ? 'mat-half--mine' : 'mat-half--theirs'}`}>
+      <ScoreTrack points={p.points} flip={flip} />
+      <div className="mat-rows">
+        {mine ? (
+          <>
+            {battlefields}
+            {bases}
+            {runes}
+          </>
         ) : (
-          props.ids.map((id) => (
-            <Piece
-              key={id}
-              mat={props.mat}
-              id={id}
-              picked={props.picked}
-              onPick={props.onPick}
-              onHover={props.onHover}
-            />
-          ))
+          <>
+            {runes}
+            {bases}
+            {battlefields}
+          </>
         )}
       </div>
     </div>
   )
 }
 
-function Side(props: {
-  mat: MatHandle
-  player: PlayerId
-  picked: ObjectId | null
-  onPick: (id: ObjectId | null) => void
-  onHover: (cardId: string | null) => void
-}) {
-  const { mat, player } = props
-  const mine = player === mat.session.seat
-  const ids = objectsAt(mat.view, { kind: 'base', player })
-  const isRune = (id: ObjectId) => getCard(mat.view.objects[id]?.cardId ?? '')?.type === 'rune'
-  return (
-    <div className={`mat-side ${mine ? 'mat-side--mine' : 'mat-side--theirs'}`}>
-      <Row
-        mat={mat}
-        title={mine ? 'Your base' : 'Their base'}
-        ids={ids.filter((id) => !isRune(id))}
-        picked={props.picked}
-        onPick={props.onPick}
-        onHover={props.onHover}
-      />
-      <Row
-        mat={mat}
-        title="Runes"
-        ids={ids.filter(isRune)}
-        picked={props.picked}
-        onPick={props.onPick}
-        onHover={props.onHover}
-        tight
-      />
-    </div>
-  )
-}
-
-function Battlefields(props: {
-  mat: MatHandle
-  picked: ObjectId | null
-  onPick: (id: ObjectId | null) => void
-  onHover: (cardId: string | null) => void
-}) {
-  const { mat } = props
-  const me = mat.session.seat
-  const them: PlayerId = me === 0 ? 1 : 0
-  return (
-    <div className="mat-middle">
-      {mat.view.battlefields.map((battlefield) => {
-        const ids = objectsAt(mat.view, { kind: 'battlefield', id: battlefield.id })
-        const side = (player: PlayerId) =>
-          ids.filter((id) => mat.view.objects[id]?.controller === player)
-        const held =
-          battlefield.controller === undefined
-            ? 'open'
-            : battlefield.controller === me
-              ? 'held by you'
-              : 'held by them'
-        const fighting = mat.view.showdown?.battlefield === battlefield.id
-        const mine = battlefield.controller === me
-        const theirs = battlefield.controller === them
-        return (
-          <div
-            key={battlefield.id}
-            className={[
-              'mat-bf',
-              mine ? 'is-mine' : '',
-              theirs ? 'is-theirs' : '',
-              fighting ? 'is-fighting' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
-            <div className="mat-bf-units">
-              {side(them).map((id) => (
-                <Piece
-                  key={id}
-                  mat={mat}
-                  id={id}
-                  picked={props.picked}
-                  onPick={props.onPick}
-                  onHover={props.onHover}
-                />
-              ))}
-            </div>
-            <div className="mat-bf-core">
-              <Card
-                cardId={mat.view.objects[battlefield.id]?.cardId}
-                size="board"
-                onHover={props.onHover}
-              />
-              <span className="mat-bf-state small">
-                {held}
-                {battlefield.contested ? ' · contested' : ''}
-                {fighting ? (mat.view.showdown?.combat ? ' · combat' : ' · showdown') : ''}
-              </span>
-            </div>
-            <div className="mat-bf-units">
-              {side(me).map((id) => (
-                <Piece
-                  key={id}
-                  mat={mat}
-                  id={id}
-                  picked={props.picked}
-                  onPick={props.onPick}
-                  onHover={props.onHover}
-                />
-              ))}
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
+/** Who is who, what they hold, and what they have to spend. */
 function Rail(props: { mat: MatHandle; player: PlayerId }) {
   const { mat, player } = props
   const p = mat.view.players[player]
   const mine = player === mat.session.seat
   const pool = p.runePool
   const power = Object.entries(pool.power).filter(([, n]) => (n ?? 0) > 0)
-  const legend = p.legendZone.cards?.[0]
   return (
     <div className={`mat-rail ${mat.view.priority === player ? 'has-priority' : ''}`}>
       <span className="mat-rail-name">
         {mat.session.players[player].name}
         {mine && <em className="tag">you</em>}
       </span>
-      <span className="mat-points" title={`${String(p.points)} of ${String(VICTORY_SCORE)} points`}>
-        {Array.from({ length: VICTORY_SCORE }, (_, i) => (
-          <i key={i} className={i < p.points ? 'is-scored' : ''} />
-        ))}
-        <b>{p.points}</b>
+      <span className="mat-rail-score">
+        {p.points}
+        <i>/{VICTORY_SCORE}</i>
       </span>
       <span className="small muted mat-rail-legend">
-        {legend === undefined ? 'no legend' : nameOf(mat.view, legend)}
+        {p.legendZone.cards?.[0] === undefined
+          ? 'no legend'
+          : nameOf(mat.view, p.legendZone.cards[0])}
       </span>
       <span className="mat-counts small">
-        <b>{p.hand.count}</b> hand · <b>{p.mainDeck.count}</b> deck · <b>{p.runeDeck.count}</b>{' '}
-        runes · <b>{p.trash.count}</b> trash
+        <b>{p.hand.count}</b> in hand
       </span>
       <span className="mat-pool small">
         <b>{pool.energy}</b> energy
@@ -312,18 +340,16 @@ function Rail(props: { mat: MatHandle; player: PlayerId }) {
 
 function Hand(props: {
   mat: MatHandle
-  picked: ObjectId | null
-  onPick: (id: ObjectId | null) => void
-  onHover: (cardId: string | null) => void
+  hands: Hands
   aside: readonly ObjectId[]
   onAside: (ids: readonly ObjectId[]) => void
 }) {
-  const { mat } = props
+  const { mat, hands } = props
   const cards = mat.view.players[mat.session.seat].hand.cards ?? []
   const mulligan = mustMulligan(mat.session.legal)
   return (
     <div className="mat-hand">
-      {cards.length === 0 && <span className="mat-empty">Your hand is empty</span>}
+      {cards.length === 0 && <span className="zone-empty">Your hand is empty</span>}
       {cards.map((id) => {
         const setAside = props.aside.includes(id)
         return (
@@ -332,8 +358,8 @@ function Hand(props: {
               cardId={mat.view.objects[id]?.cardId}
               size="hand"
               playable={playsOf(mat.session.legal, id).length > 0}
-              selected={props.picked === id}
-              onHover={props.onHover}
+              selected={hands.picked === id}
+              onHover={hands.onHover}
               onClick={() =>
                 mulligan
                   ? props.onAside(
@@ -343,7 +369,7 @@ function Hand(props: {
                           ? [...props.aside, id]
                           : props.aside,
                     )
-                  : props.onPick(props.picked === id ? null : id)
+                  : hands.onPick(hands.picked === id ? null : id)
               }
             />
             {setAside && <span className="mat-hand-flag">set aside</span>}
@@ -595,6 +621,7 @@ export function Playmat(props: { mat: MatHandle; onDismiss?: (() => void) | unde
     if (picked !== null && !view.objects[picked]) setPicked(null)
   }, [picked, view])
 
+  const hands: Hands = { picked, onPick: setPicked, onHover: setHovered }
   const yourTurn = view.turnPlayer === me
   const endTurn = view.chain.length === 0 && !view.showdown && yourTurn && view.phase === 'main'
   const status = session.ended
@@ -613,6 +640,7 @@ export function Playmat(props: { mat: MatHandle; onDismiss?: (() => void) | unde
         <span className="small muted">
           Turn {view.turnNumber} · {yourTurn ? 'your turn' : 'their turn'} · {view.phase}
           {view.step !== view.phase ? ` / ${view.step}` : ''}
+          {view.showdown ? (view.showdown.combat ? ' · combat' : ' · showdown') : ''}
         </span>
         <strong className="mat-status">{status}</strong>
         <span className="mat-top-actions">
@@ -649,30 +677,15 @@ export function Playmat(props: { mat: MatHandle; onDismiss?: (() => void) | unde
         </div>
       )}
 
-      <div className="mat-field">
-        <Rail mat={mat} player={them} />
-        <div className="mat-hand mat-hand--theirs">
-          {Array.from({ length: view.players[them].hand.count }, (_, i) => (
-            <Card key={i} size="board" />
-          ))}
-        </div>
-        <Side mat={mat} player={them} picked={picked} onPick={setPicked} onHover={setHovered} />
-        <Battlefields mat={mat} picked={picked} onPick={setPicked} onHover={setHovered} />
-        <Side mat={mat} player={me} picked={picked} onPick={setPicked} onHover={setHovered} />
-        <Rail mat={mat} player={me} />
-      </div>
+      <Rail mat={mat} player={them} />
+      <Half mat={mat} player={them} hands={hands} />
+      <Half mat={mat} player={me} hands={hands} />
+      <Rail mat={mat} player={me} />
 
       <ChainRail mat={mat} />
       <Prompt mat={mat} aside={aside} onAside={setAside} />
       {picked !== null && <Actions mat={mat} picked={picked} onDone={() => setPicked(null)} />}
-      <Hand
-        mat={mat}
-        picked={picked}
-        onPick={setPicked}
-        onHover={setHovered}
-        aside={aside}
-        onAside={setAside}
-      />
+      <Hand mat={mat} hands={hands} aside={aside} onAside={setAside} />
       <Zoomed cardId={hovered} />
       <Ended mat={mat} onDismiss={props.onDismiss} />
     </div>
