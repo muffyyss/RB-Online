@@ -35,3 +35,4 @@ __pycache__/
 
 # TypeScript declaration output from the client's typecheck-only projects
 .tsbuild/
+apps/client/src/renderer/public/card-art.json

@@ -24,7 +24,7 @@ Early build. See [the plan](docs/plan.md) for scope and milestones,
 | M5        | Server — registration, login, guests, admin CLI        | ✅ done                                                             |
 | M6        | Match server — room codes, matchmaking, reconnect      | rooms + matches ✅ (no clocks/replays yet)                          |
 | M7        | Client shell — Electron, deck builder                  | first cut                                                           |
-| M8        | Game board UI                                          | working text board                                                  |
+| M8        | Game board UI                                          | playmat with real card faces; no animation yet                      |
 | M9        | Deploy, package, playtest                              |                                                                     |
 
 ## Layout
@@ -96,6 +96,31 @@ each keeps its own login, guest and decks:
 node_modules/electron/dist/electron.exe apps/client --profile=host
 node_modules/electron/dist/electron.exe apps/client --profile=friend
 ```
+
+### Card faces, and working on the board
+
+The playmat draws the printed cards. The images are not in the repository — they
+are Riot's — so build a manifest of where they live from the reference corpus
+under `docs/reference`, which is also not in the repository:
+
+```bash
+npm run card-art          # writes apps/client/src/renderer/public/card-art.json
+```
+
+With it, the main process fetches each face once and keeps it in the user's data
+folder; the renderer asks for `rb-art://card/<id>` and never touches the network
+itself. Without it, every card draws its own frame instead — name, cost, Might
+and text — so the board still reads correctly, offline included.
+
+The board can be worked on without a server, an account or a second client:
+
+```bash
+npm run board             # http://localhost:5199/preview.html
+```
+
+That runs a real game in the browser with the same engine and card data the
+server uses, and hands the mat a mid-game position to draw. Add
+`?scene=mulligan` for the opening instead.
 
 ### Running the real server
 

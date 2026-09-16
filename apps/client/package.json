@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "preview": "electron-vite preview"
+    "preview": "electron-vite preview",
+    "board": "vite --config vite.board.config.ts"
   },
   "dependencies": {
     "@rb/cards": "*",

@@ -90,9 +90,13 @@ export default tseslint.config(
     },
   },
   {
-    // Config files are plain JS; type-aware rules have nothing to work with.
-    files: ['**/*.js'],
+    // Config files and one-off scripts are plain JS; type-aware rules have
+    // nothing to work with, and a script's Node globals are not the browser's.
+    files: ['**/*.js', '**/*.mjs'],
     extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: { console: 'readonly', process: 'readonly', URL: 'readonly', fetch: 'readonly' },
+    },
   },
   {
     files: ['packages/engine/**/*.ts', 'packages/cards/**/*.ts'],

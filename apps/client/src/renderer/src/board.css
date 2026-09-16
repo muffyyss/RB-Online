@@ -1,0 +1,641 @@
+/*
+ * The playmat and the cards on it.
+ *
+ * Cards are the printed faces where the main process has them; the frame under
+ * the art carries the same information, so the board reads the same before the
+ * art arrives, offline, or with no manifest at all. Nothing here knows a rule:
+ * the classes only reflect what the server's view says.
+ */
+
+/* ---- domains ------------------------------------------------------------ */
+
+.rb-domain--fury {
+  --domain: #e2564f;
+}
+.rb-domain--calm {
+  --domain: #4aa6dc;
+}
+.rb-domain--mind {
+  --domain: #a173e4;
+}
+.rb-domain--body {
+  --domain: #5fb96b;
+}
+.rb-domain--chaos {
+  --domain: #d264b4;
+}
+.rb-domain--order {
+  --domain: #dcb452;
+}
+.rb-domain--any,
+.rb-domain--none {
+  --domain: #7f8c9b;
+}
+
+.rb-pip {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--domain, #7f8c9b);
+  color: #0d1117;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- a card ------------------------------------------------------------- */
+
+/*
+ * Cards are sized from the window's height, so a whole match fits without
+ * scrolling — both sides, the battlefields between them and your hand — and
+ * everything grows together on a bigger window. The clamps keep a card
+ * readable on a short window and stop it ballooning on a tall one.
+ */
+.rb-card {
+  --card-w: clamp(44px, 8.1vh, 108px);
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: var(--card-w);
+  aspect-ratio: 0.716;
+  padding: 0;
+  border: 1px solid #0b0e13;
+  border-radius: 7px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--domain, #55606e) 35%, #141a23), #10151c),
+    #10151c;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 6px 12px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  text-align: left;
+  overflow: hidden;
+  cursor: default;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+button.rb-card {
+  cursor: pointer;
+}
+
+.rb-card--hand {
+  --card-w: clamp(70px, 11.5vh, 150px);
+}
+
+/* A Battlefield is printed landscape. */
+.rb-card--wide {
+  --card-w: clamp(72px, 11.8vh, 168px);
+  aspect-ratio: 1.395;
+}
+.rb-card--wide.rb-card--tiny {
+  --card-w: clamp(48px, 8vh, 104px);
+}
+.rb-card--tiny {
+  --card-w: clamp(32px, 5.6vh, 76px);
+}
+.rb-card--zoom {
+  --card-w: clamp(120px, 22vh, 260px);
+}
+
+.rb-card-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+/* With the face showing, the frame's words would only sit on top of it. */
+.rb-card.has-art .rb-card-frame {
+  display: none;
+}
+
+/* Under the art, and all there is without it. */
+.rb-card-frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 22px 6px 6px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.55));
+}
+
+.rb-card-name {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #f2f5f9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.rb-card-type {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--domain, #9aa6b4) 65%, #dfe5ec);
+}
+
+.rb-card-text {
+  margin-top: 2px;
+  font-size: 9px;
+  line-height: 1.25;
+  color: #c3ccd8;
+  overflow: hidden;
+}
+
+.rb-card.is-back {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(201, 165, 92, 0.12) 0 6px,
+      rgba(201, 165, 92, 0.04) 6px 12px
+    ),
+    linear-gradient(180deg, #1b2330, #121821);
+  border-color: #2a3544;
+}
+.rb-card.is-back .rb-card-frame {
+  display: none;
+}
+
+/* Cost, top left; Power under it. Might, top right. */
+.rb-card-energy {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #f6f8fb, #b9c4d2);
+  color: #101620;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.rb-card-power {
+  position: absolute;
+  top: 24px;
+  left: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rb-card-power .rb-pip {
+  width: 12px;
+  height: 12px;
+}
+
+.rb-card-might {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #3b4657, #222b38);
+  border: 1px solid #55627442;
+  color: #f3f6fa;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.rb-card-might.is-boosted {
+  background: linear-gradient(180deg, var(--gold-strong), var(--gold));
+  color: #1a1206;
+}
+
+.rb-card-damage {
+  position: absolute;
+  top: 18px;
+  right: 0;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--red);
+  color: #1a0a09;
+  font-size: 10px;
+}
+
+.rb-card-keywords {
+  position: absolute;
+  bottom: 2px;
+  left: 3px;
+  right: 3px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0e141c;
+  background: color-mix(in srgb, var(--domain, #9aa6b4) 70%, #e9eef4);
+  border-radius: 3px;
+  padding: 0 3px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rb-card-role,
+.rb-card-tag {
+  position: absolute;
+  bottom: 13px;
+  left: 3px;
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(8, 11, 16, 0.75);
+  color: #cfd8e3;
+}
+.rb-card-role {
+  color: var(--amber);
+}
+
+/* ---- states ------------------------------------------------------------- */
+
+.rb-card.is-exhausted {
+  transform: rotate(90deg) scale(0.84);
+  /* Turned sideways it is wider than its box, so it needs the room. */
+  margin-inline: 14px;
+  filter: saturate(0.72) brightness(0.86);
+}
+
+.rb-card.is-playable {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    0 6px 14px rgba(0, 0, 0, 0.5);
+}
+
+.rb-card.is-selected {
+  box-shadow:
+    0 0 0 2px var(--gold-strong),
+    0 0 18px rgba(224, 189, 112, 0.5);
+  transform: translateY(-4px);
+}
+.rb-card.is-selected.is-exhausted {
+  transform: rotate(90deg) scale(0.86);
+}
+
+.rb-card.is-targeted {
+  outline: 2px dashed var(--red);
+  outline-offset: 1px;
+}
+
+/* Small on the mat, readable under the cursor. */
+button.rb-card:hover {
+  transform: translateY(-6px) scale(1.18);
+  z-index: 3;
+}
+button.rb-card.is-exhausted:hover {
+  transform: rotate(90deg) scale(1);
+}
+
+/* ---- the mat ------------------------------------------------------------ */
+
+.mat {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 100vh;
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 6px 12px 4px;
+  background:
+    radial-gradient(1100px 460px at 50% 42%, rgba(63, 184, 175, 0.07), transparent 70%),
+    radial-gradient(700px 320px at 50% 0%, rgba(201, 165, 92, 0.07), transparent 70%),
+    linear-gradient(180deg, #0c1116, #0f151d 40%, #0c1116);
+}
+
+.mat-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(28, 37, 49, 0.9), rgba(18, 24, 32, 0.9));
+}
+.mat-status {
+  margin-left: auto;
+  color: var(--gold-strong);
+}
+.mat-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mat-field {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mat-rail {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: rgba(16, 21, 28, 0.6);
+}
+.mat-rail.has-priority {
+  border-color: var(--gold);
+  background: rgba(201, 165, 92, 0.08);
+}
+.mat-rail-name {
+  font-weight: 600;
+}
+.mat-rail-name .tag {
+  margin-left: 6px;
+}
+.mat-rail-legend {
+  max-width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mat-counts,
+.mat-pool {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+}
+.mat-counts b,
+.mat-pool b {
+  color: var(--text);
+}
+.mat-pool {
+  margin-left: auto;
+}
+
+.mat-points {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.mat-points i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #161d26;
+}
+.mat-points i.is-scored {
+  background: linear-gradient(180deg, var(--gold-strong), var(--gold));
+  border-color: var(--gold);
+}
+.mat-points b {
+  margin-left: 4px;
+  color: var(--gold-strong);
+}
+
+/* Each player's own area: units, then runes. */
+.mat-side {
+  display: flex;
+  gap: 10px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(22, 29, 38, 0.75), rgba(15, 20, 26, 0.75));
+}
+.mat-side--mine {
+  border-color: #33566a;
+  box-shadow: inset 0 -24px 40px -34px rgba(63, 184, 175, 0.7);
+}
+.mat-side--theirs {
+  border-color: #5c3a3a;
+  box-shadow: inset 0 24px 40px -34px rgba(224, 96, 90, 0.6);
+}
+
+/* The card under the cursor, kept clear of the mat on the left. */
+.mat-zoom {
+  position: fixed;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 7;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.mat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 11vh;
+}
+.mat-row--tight {
+  margin-left: auto;
+}
+.mat-row-label {
+  width: 68px;
+  flex: 0 0 auto;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.mat-row-cards {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 10.8vh;
+}
+.mat-empty {
+  color: #55606e;
+  font-size: 11px;
+  font-style: italic;
+}
+
+/* The contested middle of the table. */
+.mat-middle {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 2px;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, transparent, rgba(201, 165, 92, 0.05), transparent),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.015) 0 2px, transparent 2px 10px);
+}
+
+.mat-bf {
+  display: flex;
+  flex: 1 1 0;
+  max-width: 460px;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(13, 18, 24, 0.7);
+}
+.mat-bf.is-mine {
+  border-color: #3b6b7a;
+  box-shadow: inset 0 -20px 30px -24px rgba(63, 184, 175, 0.55);
+}
+.mat-bf.is-theirs {
+  border-color: #7a4a4a;
+  box-shadow: inset 0 20px 30px -24px rgba(224, 96, 90, 0.55);
+}
+.mat-bf.is-fighting {
+  border-color: var(--amber);
+}
+
+.mat-bf-units {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 10.8vh;
+  width: 100%;
+}
+
+.mat-bf-core {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+.mat-bf-state {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+}
+
+/* ---- hands -------------------------------------------------------------- */
+
+.mat-hand {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0;
+  min-height: 14vh;
+  padding: 2px 0;
+}
+.mat-hand-card {
+  position: relative;
+  margin-left: -26px;
+  transition: transform 120ms ease;
+}
+.mat-hand-card:first-child {
+  margin-left: 0;
+}
+.mat-hand-card:hover {
+  transform: translateY(-12px);
+  z-index: 4;
+}
+.mat-hand-card.is-aside {
+  transform: translateY(10px);
+  filter: brightness(0.7);
+}
+.mat-hand-flag {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Their hand: backs only, and small. */
+.mat-hand--theirs {
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+}
+.mat-hand--theirs .rb-card {
+  --card-w: clamp(20px, 2.9vh, 40px);
+  margin-left: -18px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+.mat-hand--theirs .rb-card:first-child {
+  margin-left: 0;
+}
+
+/* ---- side panels -------------------------------------------------------- */
+
+.mat-chain {
+  position: fixed;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: clamp(170px, 16vw, 230px);
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: rgba(14, 19, 26, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+.mat-chain-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.mat-actions,
+.mat-prompt {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  background: rgba(14, 19, 26, 0.96);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
+  z-index: 6;
+}
+.mat-actions {
+  bottom: 18vh;
+}
+.mat-prompt {
+  bottom: 18vh;
+  flex-wrap: wrap;
+  max-width: min(760px, 92vw);
+  justify-content: center;
+}
+.mat-prompt-cards {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* With both up, the prompt is the one that must be answered: keep it clear. */
+.mat-prompt ~ .mat-actions {
+  bottom: 28vh;
+}

@@ -2,10 +2,11 @@
  * Electron main process: the window, and the services the renderer asks for.
  */
 
-import { BrowserWindow, app, safeStorage, session as electronSession } from 'electron'
+import { BrowserWindow, app, protocol, safeStorage, session as electronSession } from 'electron'
 import type { WebContents } from 'electron'
 import { join } from 'node:path'
 
+import { ART_SCHEME, CardArt, manifestPaths } from './art.js'
 import { CHANNELS } from '../shared/bridge.js'
 import type { AuthState } from '../shared/bridge.js'
 import { registerIpc } from './ipc.js'
@@ -32,6 +33,12 @@ if (profile) app.setPath('userData', `${app.getPath('userData')}-${profile}`)
 
 // Every renderer sandboxed, whatever a window's own options say.
 app.enableSandbox()
+
+// Card faces come from `rb-art://card/<id>`, served by the main process. It has
+// to be declared before the app is ready for the renderer to load images from it.
+protocol.registerSchemesAsPrivileged([
+  { scheme: ART_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
+])
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -94,6 +101,11 @@ async function main(): Promise<void> {
   )
 
   const userData = app.getPath('userData')
+  new CardArt(
+    manifestPaths(join(import.meta.dirname, '../renderer')),
+    join(userData, 'card-art'),
+  ).register()
+
   const settings = new SettingsStore(
     join(userData, 'settings.json'),
     process.env['RB_SERVER_URL'] ?? DEFAULT_SERVER_URL,
