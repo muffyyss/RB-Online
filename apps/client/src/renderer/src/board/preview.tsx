@@ -14,7 +14,7 @@ import { createRoot } from 'react-dom/client'
 
 import { cardOracle } from '@rb/cards'
 import { SeededRng, applyAction, createGame, legalActions, redactFor } from '@rb/engine'
-import type { GameAction, GameState, PlayerId } from '@rb/engine'
+import type { GameAction, GameState, ObjectId, PlayerId } from '@rb/engine'
 import { PROVING_GROUNDS_DECKS } from '@rb/cards'
 
 import { Playmat } from './Playmat.js'
@@ -52,12 +52,25 @@ function concrete(state: GameState, action: GameAction, rng: SeededRng): GameAct
 /** Units on the board: what makes a position worth looking at. */
 function liveliness(state: GameState): number {
   let score = 0
+  // Who has units at each Battlefield: both sides standing at one of them is
+  // the position the mat most needs to show, since that is where the two
+  // Battle Zones face each other across the card.
+  const sides = new Map<ObjectId, Set<PlayerId>>()
   for (const object of Object.values(state.objects)) {
     if (oracle.facts(object.cardId)?.type !== 'unit') continue
-    if (object.zone === 'battlefield') score += 3
-    else if (object.zone === 'base') score += 1
+    if (object.zone === 'battlefield') {
+      score += 3
+      if (object.location?.kind === 'battlefield') {
+        const at = sides.get(object.location.id) ?? new Set<PlayerId>()
+        at.add(object.controller)
+        sides.set(object.location.id, at)
+      }
+    } else if (object.zone === 'base') score += 1
   }
-  return score + (state.showdown ? 4 : 0)
+  for (const at of sides.values()) if (at.size > 1) score += 8
+  // A Showdown is the moment both Battle Zones are occupied at once, which is
+  // the middle of the mat doing its job.
+  return score + (state.showdown ? 10 : 0)
 }
 
 /**
@@ -72,7 +85,7 @@ function opening(turns: number): GameState {
   for (let seed = 1; seed <= 40; seed += 1) {
     const state = playOut(seed, turns)
     if (!best || liveliness(state) > liveliness(best)) best = state
-    if (best && liveliness(best) >= 14) break
+    if (best && liveliness(best) >= 22) break
   }
   if (!best) throw new Error('no position')
   return best
@@ -85,14 +98,16 @@ function fresh(): GameState {
   return createGame([mine.deck, theirs.deck], 11)
 }
 
-function playOut(seed: number, turns: number): GameState {
+function playOut(seed: number, turns: number, stop?: (state: GameState) => boolean): GameState {
   const rng = SeededRng.fromSeed(seed)
   const [mine, theirs] = [PROVING_GROUNDS_DECKS[3], PROVING_GROUNDS_DECKS[2]]
   if (!mine || !theirs) throw new Error('missing starter deck')
   let state = createGame([mine.deck, theirs.deck], 11)
   for (let i = 0; i < 2000 && state.winner === null; i += 1) {
-    // Stop on the player's own Main Phase, where the mat has the most to show.
-    if (
+    if (stop) {
+      if (stop(state)) break
+    } else if (
+      // Stop on the player's own Main Phase, where the mat has the most to show.
       state.turnNumber >= turns &&
       state.turnPlayer === SEAT &&
       state.priority === SEAT &&
@@ -123,10 +138,25 @@ function playOut(seed: number, turns: number): GameState {
   return state
 }
 
-/** `?scene=mulligan` shows the opening prompt instead of a mid-game board. */
+/**
+ * A Battlefield being fought over, where the two Battle Zones both have units
+ * in them. Random play contests a Battlefield rarely, so this looks through
+ * many games and takes the first that gets there.
+ */
+function showdown(): GameState {
+  for (let seed = 1; seed <= 400; seed += 1) {
+    const state = playOut(seed, 0, (s) => s.showdown !== undefined)
+    if (state.showdown) return state
+  }
+  return opening(7)
+}
+
+/** `?scene=` picks what the mat is handed: a mid-game board by default. */
 function scene(): GameState {
   const wanted = new URLSearchParams(location.search).get('scene')
-  return wanted === 'mulligan' ? fresh() : opening(7)
+  if (wanted === 'mulligan') return fresh()
+  if (wanted === 'showdown') return showdown()
+  return opening(7)
 }
 
 function Harness() {

@@ -20,7 +20,7 @@
    * window. Areas reserve room from it too, which is why it lives here rather
    * than on the card.
    */
-  --board-card: clamp(40px, 6.6vh, 94px);
+  --board-card: clamp(38px, 5.9vh, 88px);
 }
 
 /* ---- domains ------------------------------------------------------------ */
@@ -99,7 +99,7 @@ button.rb-card {
 }
 
 .rb-card--hand {
-  --card-w: clamp(66px, 10.2vh, 136px);
+  --card-w: clamp(56px, 8.8vh, 120px);
 }
 .rb-card--tiny {
   --card-w: clamp(30px, 5vh, 66px);
@@ -110,7 +110,7 @@ button.rb-card {
 
 /* A Battlefield is printed landscape. */
 .rb-card--wide {
-  --card-w: clamp(66px, 9.6vh, 132px);
+  --card-w: clamp(60px, 8.6vh, 120px);
   aspect-ratio: 1.395;
 }
 .rb-card--wide.rb-card--tiny {
@@ -403,27 +403,33 @@ button.rb-card.is-exhausted:hover {
   margin-left: auto;
 }
 
-/* ---- the two halves ----------------------------------------------------- */
+/* ---- the mat, edge to edge ---------------------------------------------- */
 
-.mat-half {
+.mat-body {
   display: flex;
-  gap: 8px;
   flex: 1;
+  gap: 8px;
+  min-height: 0;
 }
-/* The far player's mat is the near one mirrored, as it is across a table. */
-.mat-half--theirs {
-  flex-direction: row-reverse;
-}
-.mat-half--theirs .mat-row {
-  flex-direction: row-reverse;
-}
-
-.mat-rows {
+.mat-field {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: 6px;
   min-width: 0;
+}
+
+/* One player's own rows, behind their Battle Zone. */
+.mat-half {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+/* The far player's mat is the near one mirrored, as it is across a table. */
+.mat-half--theirs .mat-row {
+  flex-direction: row-reverse;
 }
 
 .mat-row {
@@ -433,7 +439,40 @@ button.rb-card.is-exhausted:hover {
   flex: 1;
 }
 
-/* The score track down the outer edge. */
+/* ---- the middle, where the two sides meet ------------------------------- */
+
+/*
+ * A column per Battlefield: their Battle Zone, the Battlefield card, ours. The
+ * three rows share one column track, so a unit always sits directly across the
+ * Battlefield from whatever it is facing. Two card-wide tracks at each end hold
+ * the Legend and Hero — the far player's at the far end, ours at ours — and
+ * both the Battlefield row and our row start after the first two.
+ */
+.mat-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mat-mid-row {
+  display: grid;
+  grid-template-columns:
+    repeat(2, var(--slot))
+    repeat(var(--columns, 1), minmax(0, 1fr))
+    repeat(2, var(--slot));
+  align-items: stretch;
+  gap: 8px;
+  --slot: calc(var(--board-card, 60px) + 18px);
+}
+.mat-mid-row--theirs,
+.mat-mid-row--mine {
+  flex: 1;
+}
+.mat-mid-row--fields > :first-child,
+.mat-mid-row--mine > :first-child {
+  grid-column-start: 3;
+}
+
+/* The score track down a player's own edge. */
 .score {
   display: flex;
   flex-direction: column;
@@ -474,6 +513,16 @@ button.rb-card.is-exhausted:hover {
 .zone--wide {
   flex: 1;
   min-width: 0;
+}
+/* The Battlefield card's own slot: card-sized, centred on its column. */
+.zone--slot {
+  justify-self: center;
+  min-width: 0;
+}
+.zone--slot .zone-cards {
+  justify-content: center;
+  min-height: 0;
+  overflow: visible;
 }
 .zone-cards {
   display: flex;
@@ -556,7 +605,7 @@ button.rb-card.is-exhausted:hover {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  min-height: 14.6vh;
+  min-height: 13.2vh;
   padding: 2px 0;
 }
 .mat-hand-card {

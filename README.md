@@ -120,7 +120,8 @@ npm run board             # http://localhost:5199/preview.html
 
 That runs a real game in the browser with the same engine and card data the
 server uses, and hands the mat a mid-game position to draw. Add
-`?scene=mulligan` for the opening instead.
+`?scene=mulligan` for the opening instead, or `?scene=showdown` for a
+Battlefield being fought over, with units in both Battle Zones.
 
 ### Running the real server
 
