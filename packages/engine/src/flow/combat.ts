@@ -142,8 +142,13 @@ export function resolveCombatDamage(
   const attackTargets = assignmentOrder(state, defenders, oracle)
   const defendTargets = assignmentOrder(state, attackers, oracle)
 
-  const ontoDefenders = assignDamage(sumMight(defendTargets), attackTargets)
-  const ontoAttackers = assignDamage(sumMight(attackTargets), defendTargets)
+  // 423.1.b - a Stunned unit adds nothing to the damage its side deals, though
+  // it still needs its full Might in damage to die (423.1.c): it stays in the
+  // targets as it is.
+  const dealing = (targets: readonly DamageTarget[]) =>
+    sumMight(targets.filter((target) => !state.objects[target.id]?.stunned))
+  const ontoDefenders = assignDamage(dealing(defendTargets), attackTargets)
+  const ontoAttackers = assignDamage(dealing(attackTargets), defendTargets)
 
   // Deal everything at once (465.2.c.1.a, 465.2.d).
   const objects = { ...state.objects }

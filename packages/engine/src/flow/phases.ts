@@ -196,12 +196,15 @@ function expiration(state: GameState, events: GameEvent[]): GameState {
     if (
       object.mightThisTurn !== undefined ||
       object.recallInsteadOfDying !== undefined ||
-      object.keywordsThisTurn !== undefined
+      object.keywordsThisTurn !== undefined ||
+      object.stunned !== undefined
     ) {
+      // 423.1.a.2 - Stunned goes with them.
       const {
         mightThisTurn: _might,
         recallInsteadOfDying: _recall,
         keywordsThisTurn: _keywords,
+        stunned: _stunned,
         ...rest
       } = objects[id] ?? object
       objects[id] = rest

@@ -256,6 +256,11 @@ function targetIds(
 
 function amountOf(state: GameState, amount: Amount, ctx: SelectorContext): number {
   if (typeof amount === 'number') return amount
+  if ('might' in amount) {
+    const unit = state.objects[ctx.bindings?.[amount.might]?.[0] ?? '']
+    const might = unit ? mightOf(state, unit, ctx.oracle) : undefined
+    return Math.max(0, might ?? 0)
+  }
   return resolveSelector(state, amount.count, ctx).length
 }
 
@@ -288,6 +293,17 @@ interface StepOutcome {
  * its player controls, since tokens may be played only to those ("your base or
  * battlefields you control"); otherwise, and when nothing is bound, Base.
  */
+/**
+ * The Battlefield a binding names: the Battlefield itself, or the one a bound
+ * unit is standing at. Undefined for anything else, or nothing.
+ */
+function battlefieldOf(state: GameState, id: ObjectId | undefined): ObjectId | undefined {
+  if (id === undefined) return undefined
+  if (state.battlefields.some((bf) => bf.id === id)) return id
+  const location = state.objects[id]?.location
+  return location?.kind === 'battlefield' ? location.id : undefined
+}
+
 function tokenDestination(
   state: GameState,
   /** `base`, `here`, or a binding. */
@@ -506,18 +522,30 @@ function runStep(
 
     case 'move': {
       let next = state
+      const field = step.to === 'base' ? undefined : battlefieldOf(state, bindings[step.to]?.[0])
+      // Nothing to move to: the choice was declined, or the unit named has left.
+      if (step.to !== 'base' && field === undefined) return { state }
       for (const id of resolve(step.target)) {
         const unit = next.objects[id]
-        if (!unit || unit.location?.kind !== 'battlefield') continue
+        if (!unit?.location || !isOnBoard(unit)) continue
         if (oracle.facts(unit.cardId)?.type !== 'unit') continue
-        // 447.2 - a Destination a passive forbids is not a Destination at all,
-        // for an effect's Move as much as for a Standard Move (420.1).
-        if (moveBlocked(next, unit, 'base', oracle)) continue
-        const to = { kind: 'base', player: unit.controller } as const
-        next = withObject(next, id, { zone: 'base', location: to })
+        if (field === undefined) {
+          if (unit.location.kind !== 'battlefield') continue
+          // 447.2 - a Destination a passive forbids is not a Destination at all,
+          // for an effect's Move as much as for a Standard Move (420.1).
+          if (moveBlocked(next, unit, 'base', oracle)) continue
+          const to = { kind: 'base', player: unit.controller } as const
+          next = withObject(next, id, { zone: 'base', location: to })
+          events.push({ type: 'moved', unit: id, to })
+          continue
+        }
+        if (unit.location.kind === 'battlefield' && unit.location.id === field) continue
+        const to = { kind: 'battlefield', id: field } as const
+        next = withObject(next, id, { zone: 'battlefield', location: to })
         events.push({ type: 'moved', unit: id, to })
       }
-      // 453 - the Cleanup this calls for runs once the Chain allows it (321.1).
+      // 453 - the Cleanup this calls for runs once the Chain allows it (321.1),
+      // and that is where the units it brought together are Contested.
       return { state: next }
     }
 
@@ -590,9 +618,13 @@ function runStep(
     case 'stun': {
       let next = state
       for (const id of resolve(step.target)) {
-        // Stun's full behaviour (423) is not modelled yet; exhausting is the
-        // visible part. Flagged so it is not mistaken for complete.
-        next = withObject(next, id, { exhausted: true })
+        const unit = next.objects[id]
+        if (!unit || !isOnBoard(unit) || oracle.facts(unit.cardId)?.type !== 'unit') continue
+        // 423.1.a.1 - already Stunned: nothing happens, so nothing triggers.
+        if (unit.stunned) continue
+        // Stunning neither exhausts nor weakens it; what it takes away is its
+        // combat damage (423.1.b), which the Combat Damage Step reads.
+        next = withObject(next, id, { stunned: true })
         events.push({ type: 'stunned', target: id })
       }
       return { state: next }

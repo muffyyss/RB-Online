@@ -69,7 +69,7 @@ function placeName(view: GameView, at: Location, seat: PlayerId): string {
   return nameOf(view, at.id)
 }
 
-/** What a unit's keywords amount to right now: printed, plus any granted. */
+/** What a unit's keywords amount to right now: printed, plus any granted, plus Stunned. */
 function keywordsOf(object: GameObject): readonly string[] {
   const values = new Map<string, number>()
   for (const entry of getCard(object.cardId)?.keywords ?? []) {
@@ -81,9 +81,11 @@ function keywordsOf(object: GameObject): readonly string[] {
       values.set(keyword, (values.get(keyword) ?? 0) + (value ?? 0))
     }
   }
-  return [...values].map(([keyword, value]) =>
+  const shown = [...values].map(([keyword, value]) =>
     value > 1 ? `${keyword} ${String(value)}` : keyword,
   )
+  // Not a keyword, but read the same way at a glance: it deals no combat damage (423).
+  return object.stunned ? [...shown, 'stunned'] : shown
 }
 
 /** How far a unit is above or below its printed Might. */

@@ -100,8 +100,11 @@ const PRINTED: Row[] = [
 
 describe('OGN cards used by the Proving Grounds decks', () => {
   it('covers every entered OGN card, and nothing is left out of the table', () => {
-    // The Legends have a table of their own, in ogn-legends.test.ts.
-    const entered = OGN_CARDS.filter((card) => card.type !== 'legend').map((card) => card.id)
+    // The Legends and their Signature spells have tables of their own, in
+    // ogn-legends.test.ts and ogn-signature-spells.test.ts.
+    const entered = OGN_CARDS.filter(
+      (card) => card.type !== 'legend' && !card.supertypes?.includes('signature'),
+    ).map((card) => card.id)
     expect(entered.sort()).toEqual(PRINTED.map(([id]) => id).sort())
   })
 
@@ -177,6 +180,13 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'herald-of-the-arcane-recruit',
       'bounty-hunter-ganking',
       'the-boss-ready',
+      'icathian-rain-effect',
+      'stormbringer-effect',
+      'super-mega-death-rocket-effect',
+      'last-breath-effect',
+      'zenith-blade-effect',
+      'siphon-power-effect',
+      'showstopper-effect',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {

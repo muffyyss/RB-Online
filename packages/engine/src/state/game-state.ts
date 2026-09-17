@@ -98,6 +98,12 @@ export interface GameObject {
   /** Keywords given "this turn", by value. Expires in the Expiration Step (317.2.c). */
   readonly keywordsThisTurn?: Readonly<Partial<Record<Keyword, number>>>
   /**
+   * Stunned (423): binary, so a Stunned unit cannot be Stunned again
+   * (423.1.a.1). It deals no combat damage (423.1.b) but keeps its full Might
+   * for being killed (423.1.c), and loses the status as the turn ends (423.1.a.2).
+   */
+  readonly stunned?: true
+  /**
    * "The next time it dies this turn, recall it exhausted instead" (438). Used
    * up by the first death it replaces; expires with the turn.
    */

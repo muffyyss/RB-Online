@@ -2,7 +2,8 @@
  * Origins (OGN) — the base set. Entered so far: the cards the four Proving
  * Grounds decks use — their Runes and Main Deck cards — every Battlefield in
  * the set, since a deck of any domain draws its Battlefields from the same 24,
- * and all twelve Legends, which is what a deck is built around. The rest of the
+ * all twelve Legends, which is what a deck is built around, and each Legend's
+ * Signature spell. The rest of the
  * set is added as it is needed.
  */
 
@@ -85,6 +86,18 @@ import swiftScout from './swift-scout.js'
 import heraldOfTheArcane from './herald-of-the-arcane.js'
 import bountyHunter from './bounty-hunter.js'
 import theBoss from './the-boss.js'
+import icathianRain from './icathian-rain.js'
+import stormbringer from './stormbringer.js'
+import superMegaDeathRocket from './super-mega-death-rocket.js'
+import noxianGuillotine from './noxian-guillotine.js'
+import foxFire from './fox-fire.js'
+import dragonsRage from './dragons-rage.js'
+import lastBreath from './last-breath.js'
+import zenithBlade from './zenith-blade.js'
+import guerillaWarfare from './guerilla-warfare.js'
+import siphonPower from './siphon-power.js'
+import bulletTime from './bullet-time.js'
+import showstopper from './showstopper.js'
 
 /** In collector-number order. */
 export const OGN_CARDS: readonly CardDefinition[] = [
@@ -165,4 +178,16 @@ export const OGN_CARDS: readonly CardDefinition[] = [
   heraldOfTheArcane,
   bountyHunter,
   theBoss,
+  icathianRain,
+  stormbringer,
+  superMegaDeathRocket,
+  noxianGuillotine,
+  foxFire,
+  dragonsRage,
+  lastBreath,
+  zenithBlade,
+  guerillaWarfare,
+  siphonPower,
+  bulletTime,
+  showstopper,
 ]

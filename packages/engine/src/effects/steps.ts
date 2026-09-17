@@ -334,11 +334,16 @@ export const stepConditionSchema = z.discriminatedUnion('kind', [
 
 export type StepCondition = z.infer<typeof stepConditionSchema>
 
-/** A number that is either fixed, or counted from the board at resolution time. */
+/** A number that is either fixed, or read from the board at resolution time. */
 export const amountSchema = z.union([
   z.number().int(),
   // e.g. "deal damage equal to the number of allies here"
   z.object({ count: selectorSchema }),
+  /**
+   * "Deal damage equal to its Might": the current Might of a bound unit, read
+   * as the step runs, and 0 if it has gone (143.2.b treats negative as 0).
+   */
+  z.object({ might: bindingSchema }),
 ])
 
 export type Amount = z.infer<typeof amountSchema>
@@ -409,10 +414,16 @@ const leafStepSchema = z.discriminatedUnion('op', [
    * Move units by an effect (420, 449) - not a Standard Move, so it costs
    * nothing and the units stay as ready or exhausted as they were.
    *
-   * `to: 'base'` is each unit's controller's Base. A unit already there does
-   * not move: a Move needs a different Destination (447).
+   * `to: 'base'` is each unit's controller's Base. `to` a binding is a
+   * Battlefield chosen earlier ("move it to a battlefield"), or the Battlefield
+   * a bound unit stands at ("to that enemy unit's battlefield"). A unit already
+   * at the Destination does not move: a Move needs a different one (447).
    */
-  z.object({ op: z.literal('move'), target: targetSchema, to: z.literal('base') }),
+  z.object({
+    op: z.literal('move'),
+    target: targetSchema,
+    to: z.union([z.literal('base'), bindingSchema]),
+  }),
 
   /**
    * Create and play unit tokens (439, 185.2.a): "play a 1 [M] Recruit unit
