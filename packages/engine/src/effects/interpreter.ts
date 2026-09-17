@@ -120,6 +120,18 @@ function isOnBoard(object: GameObject): boolean {
   return object.zone === 'base' || object.zone === 'battlefield'
 }
 
+/**
+ * Where "me" still means this object: on the board, or a Legend sitting in its
+ * own Legend Zone, where it is a Game Object too (107.4.c) and where its own
+ * ability may exhaust or ready it.
+ */
+function isPresent(object: GameObject, oracle: CardOracle): boolean {
+  return (
+    isOnBoard(object) ||
+    (object.zone === 'legendZone' && oracle.facts(object.cardId)?.type === 'legend')
+  )
+}
+
 function countByDomain(domains: readonly Domain[]): Partial<Record<Domain, number>> {
   const counts: Partial<Record<Domain, number>> = {}
   for (const domain of domains) counts[domain] = (counts[domain] ?? 0) + 1
@@ -236,7 +248,7 @@ function targetIds(
     // "Me" is the source while it is on the board. Once it has left, it is a new
     // object (141.1.b.2), so an ability referring to it does nothing.
     const source = state.objects[ctx.source]
-    return source && isOnBoard(source) ? [source.id] : []
+    return source && isPresent(source, ctx.oracle) ? [source.id] : []
   }
   if (typeof target === 'string') return bindings[target] ?? []
   return resolveSelector(state, target, ctx).slice(0, selectorCount(target))
@@ -406,9 +418,12 @@ function runStep(
       for (const id of resolve(step.target)) {
         const object = next.objects[id]
         if (!object || !isOnBoard(object)) continue
-        const granted = object.keywordsThisCombat ?? {}
+        // Which pile it goes in is the duration: one is swept up as the
+        // combat ends, the other in the Expiration Step (317.2.c).
+        const field = step.duration === 'this-combat' ? 'keywordsThisCombat' : 'keywordsThisTurn'
+        const granted = object[field] ?? {}
         next = withObject(next, id, {
-          keywordsThisCombat: { ...granted, [step.keyword]: (granted[step.keyword] ?? 0) + value },
+          [field]: { ...granted, [step.keyword]: (granted[step.keyword] ?? 0) + value },
         })
       }
       return { state: next }

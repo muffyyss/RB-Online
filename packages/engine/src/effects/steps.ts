@@ -429,15 +429,16 @@ const leafStepSchema = z.discriminatedUnion('op', [
   }),
 
   /**
-   * "It gains [Shield 2] this combat": a keyword on the unit until the combat
-   * ends. Values add to any it already has (807.2, 814.2).
+   * "It gains [Shield 2] this combat", "give a unit [Ganking] this turn": a
+   * keyword on the unit until the combat ends, or until the Expiration Step
+   * (317.2.c). Values add to any it already has (807.2, 814.2).
    */
   z.object({
     op: z.literal('grant-keyword'),
     keyword: z.enum(KEYWORDS),
     value: z.number().int().positive().optional(),
     target: targetSchema,
-    duration: z.literal('this-combat'),
+    duration: z.enum(['this-combat', 'this-turn']),
   }),
 
   /**

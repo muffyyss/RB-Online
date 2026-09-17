@@ -1,8 +1,9 @@
 /**
  * Origins (OGN) — the base set. Entered so far: the cards the four Proving
- * Grounds decks use — their Runes and Main Deck cards — and every Battlefield
- * in the set, since a deck of any domain draws its Battlefields from the same
- * 24. The rest of the set is added as it is needed.
+ * Grounds decks use — their Runes and Main Deck cards — every Battlefield in
+ * the set, since a deck of any domain draws its Battlefields from the same 24,
+ * and all twelve Legends, which is what a deck is built around. The rest of the
+ * set is added as it is needed.
  */
 
 import type { CardDefinition } from '../../schema.js'
@@ -72,6 +73,18 @@ import theGrandPlaza from './the-grand-plaza.js'
 import vilemawsLair from './vilemaws-lair.js'
 import windsweptHillock from './windswept-hillock.js'
 import zaunWarrens from './zaun-warrens.js'
+import daughterOfTheVoid from './daughter-of-the-void.js'
+import relentlessStorm from './relentless-storm.js'
+import looseCannon from './loose-cannon.js'
+import handOfNoxus from './hand-of-noxus.js'
+import nineTailedFox from './nine-tailed-fox.js'
+import blindMonk from './blind-monk.js'
+import unforgiven from './unforgiven.js'
+import radiantDawn from './radiant-dawn.js'
+import swiftScout from './swift-scout.js'
+import heraldOfTheArcane from './herald-of-the-arcane.js'
+import bountyHunter from './bounty-hunter.js'
+import theBoss from './the-boss.js'
 
 /** In collector-number order. */
 export const OGN_CARDS: readonly CardDefinition[] = [
@@ -140,4 +153,16 @@ export const OGN_CARDS: readonly CardDefinition[] = [
   vilemawsLair,
   windsweptHillock,
   zaunWarrens,
+  daughterOfTheVoid,
+  relentlessStorm,
+  looseCannon,
+  handOfNoxus,
+  nineTailedFox,
+  blindMonk,
+  unforgiven,
+  radiantDawn,
+  swiftScout,
+  heraldOfTheArcane,
+  bountyHunter,
+  theBoss,
 ]

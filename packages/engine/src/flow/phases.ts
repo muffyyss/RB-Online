@@ -71,11 +71,18 @@ function withPlayer(state: GameState, id: PlayerId, patch: Partial<PlayerState>)
 // Step tasks
 // ---------------------------------------------------------------------------
 
-/** 315.1.b — the Turn Player readies everything they control that can be readied. */
+/**
+ * 315.1.b — the Turn Player readies every Game Object they control that can be.
+ *
+ * Their Legend included: it is a Game Object in its Legend Zone (107.4.c), and
+ * a Legend exhausted to pay for its own ability has to come back, or that
+ * ability would be once a game rather than once a turn.
+ */
 function awaken(state: GameState, events: GameEvent[]): GameState {
   const objects = { ...state.objects }
   for (const [id, object] of Object.entries(state.objects)) {
-    const onBoard = object.zone === 'base' || object.zone === 'battlefield'
+    const onBoard =
+      object.zone === 'base' || object.zone === 'battlefield' || object.zone === 'legendZone'
     if (onBoard && object.controller === state.turnPlayer && object.exhausted) {
       objects[id] = { ...object, exhausted: false }
       events.push({ type: 'readied', target: id })
@@ -186,10 +193,15 @@ function expiration(state: GameState, events: GameEvent[]): GameState {
     }
     // 317.2.c - "this turn" effects expire. After healing, so a unit whose
     // Might falls back cannot die to damage that is already gone.
-    if (object.mightThisTurn !== undefined || object.recallInsteadOfDying !== undefined) {
+    if (
+      object.mightThisTurn !== undefined ||
+      object.recallInsteadOfDying !== undefined ||
+      object.keywordsThisTurn !== undefined
+    ) {
       const {
         mightThisTurn: _might,
         recallInsteadOfDying: _recall,
+        keywordsThisTurn: _keywords,
         ...rest
       } = objects[id] ?? object
       objects[id] = rest

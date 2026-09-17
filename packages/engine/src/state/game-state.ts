@@ -95,6 +95,8 @@ export interface GameObject {
   readonly mightWhileOnBoard?: number
   /** Keywords given "this combat", by value (807.2, 814.2 sum them). Cleared as combat ends. */
   readonly keywordsThisCombat?: Readonly<Partial<Record<Keyword, number>>>
+  /** Keywords given "this turn", by value. Expires in the Expiration Step (317.2.c). */
+  readonly keywordsThisTurn?: Readonly<Partial<Record<Keyword, number>>>
   /**
    * "The next time it dies this turn, recall it exhausted instead" (438). Used
    * up by the first death it replaces; expires with the turn.

@@ -100,7 +100,9 @@ const PRINTED: Row[] = [
 
 describe('OGN cards used by the Proving Grounds decks', () => {
   it('covers every entered OGN card, and nothing is left out of the table', () => {
-    expect(OGN_CARDS.map((c) => c.id).sort()).toEqual(PRINTED.map(([id]) => id).sort())
+    // The Legends have a table of their own, in ogn-legends.test.ts.
+    const entered = OGN_CARDS.filter((card) => card.type !== 'legend').map((card) => card.id)
+    expect(entered.sort()).toEqual(PRINTED.map(([id]) => id).sort())
   })
 
   it.each(PRINTED)(
@@ -169,6 +171,12 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'vilemaws-lair-no-retreat',
       'windswept-hillock-ganking',
       'zaun-warrens-cycle',
+      'daughter-of-the-void-power',
+      'loose-cannon-draw',
+      'blind-monk-buff',
+      'herald-of-the-arcane-recruit',
+      'bounty-hunter-ganking',
+      'the-boss-ready',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {

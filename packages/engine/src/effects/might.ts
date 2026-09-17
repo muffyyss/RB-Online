@@ -28,6 +28,7 @@ export function keywordOn(
   return (
     (facts ? keywordValue(facts, keyword) : 0) +
     (object.keywordsThisCombat?.[keyword] ?? 0) +
+    (object.keywordsThisTurn?.[keyword] ?? 0) +
     passiveKeyword(board, object, oracle, keyword)
   )
 }

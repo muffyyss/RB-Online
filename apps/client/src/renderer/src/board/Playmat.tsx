@@ -76,8 +76,10 @@ function keywordsOf(object: GameObject): readonly string[] {
     const [keyword, value] = typeof entry === 'string' ? [entry, 1] : entry
     values.set(keyword, value)
   }
-  for (const [keyword, value] of Object.entries(object.keywordsThisCombat ?? {})) {
-    values.set(keyword, (values.get(keyword) ?? 0) + (value ?? 0))
+  for (const given of [object.keywordsThisCombat, object.keywordsThisTurn]) {
+    for (const [keyword, value] of Object.entries(given ?? {})) {
+      values.set(keyword, (values.get(keyword) ?? 0) + (value ?? 0))
+    }
   }
   return [...values].map(([keyword, value]) =>
     value > 1 ? `${keyword} ${String(value)}` : keyword,
