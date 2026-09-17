@@ -76,6 +76,26 @@ const PRINTED: Row[] = [
   ['OGN-288', 'Startipped Peak', 'battlefield', [], null, 0, null],
   ['OGN-294', 'Trifarian War Camp', 'battlefield', [], null, 0, null],
   ['OGN-296', 'Void Gate', 'battlefield', [], null, 0, null],
+  ['OGN-275', 'Altar to Unity', 'battlefield', [], null, 0, null],
+  ['OGN-276', "Aspirant's Climb", 'battlefield', [], null, 0, null],
+  ['OGN-277', 'Back-Alley Bar', 'battlefield', [], null, 0, null],
+  ['OGN-278', 'Bandle Tree', 'battlefield', [], null, 0, null],
+  ['OGN-280', 'Grove of the God-Willow', 'battlefield', [], null, 0, null],
+  ['OGN-281', 'Hallowed Tomb', 'battlefield', [], null, 0, null],
+  ['OGN-282', 'Monastery of Hirana', 'battlefield', [], null, 0, null],
+  ['OGN-283', 'Navori Fighting Pit', 'battlefield', [], null, 0, null],
+  ['OGN-284', 'Obelisk of Power', 'battlefield', [], null, 0, null],
+  ['OGN-285', "Reaver's Row", 'battlefield', [], null, 0, null],
+  ['OGN-286', "Reckoner's Arena", 'battlefield', [], null, 0, null],
+  ['OGN-287', 'Sigil of the Storm', 'battlefield', [], null, 0, null],
+  ['OGN-289', "Targon's Peak", 'battlefield', [], null, 0, null],
+  ['OGN-290', "The Arena's Greatest", 'battlefield', [], null, 0, null],
+  ['OGN-291', 'The Candlelit Sanctum', 'battlefield', [], null, 0, null],
+  ['OGN-292', 'The Dreaming Tree', 'battlefield', [], null, 0, null],
+  ['OGN-293', 'The Grand Plaza', 'battlefield', [], null, 0, null],
+  ['OGN-295', "Vilemaw's Lair", 'battlefield', [], null, 0, null],
+  ['OGN-297', 'Windswept Hillock', 'battlefield', [], null, 0, null],
+  ['OGN-298', 'Zaun Warrens', 'battlefield', [], null, 0, null],
 ]
 
 describe('OGN cards used by the Proving Grounds decks', () => {
@@ -139,6 +159,16 @@ describe('OGN cards used by the Proving Grounds decks', () => {
       'meditation-effect',
       'fortified-position-shield',
       'dune-drake-hunt',
+      'altar-to-unity-recruit',
+      'aspirants-climb-victory-score',
+      'grove-of-the-god-willow-draw',
+      'navori-fighting-pit-buff',
+      'reavers-row-retreat',
+      'sigil-of-the-storm-recycle',
+      'the-grand-plaza-win',
+      'vilemaws-lair-no-retreat',
+      'windswept-hillock-ganking',
+      'zaun-warrens-cycle',
     ])
     for (const card of OGN_CARDS) {
       for (const ability of card.abilities ?? []) {

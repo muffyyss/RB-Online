@@ -18,9 +18,18 @@ import type { GameObject, PlayerId } from '../state/game-state.js'
  * A keyword's value on this object: printed, plus any given this combat
  * (807.2, 814.2 add them up). 0 if it has none.
  */
-export function keywordOn(object: GameObject, oracle: CardOracle, keyword: Keyword): number {
+export function keywordOn(
+  board: Board,
+  object: GameObject,
+  oracle: CardOracle,
+  keyword: Keyword,
+): number {
   const facts = oracle.facts(object.cardId)
-  return (facts ? keywordValue(facts, keyword) : 0) + (object.keywordsThisCombat?.[keyword] ?? 0)
+  return (
+    (facts ? keywordValue(facts, keyword) : 0) +
+    (object.keywordsThisCombat?.[keyword] ?? 0) +
+    passiveKeyword(board, object, oracle, keyword)
+  )
 }
 
 /** Where a passive works: on the board, or a Legend in its Legend Zone. */
@@ -103,6 +112,65 @@ function passiveMight(board: Board, unit: GameObject, oracle: CardOracle): numbe
   return total
 }
 
+/** A keyword given by a passive in play ("Units here have [Ganking]"). */
+function passiveKeyword(
+  board: Board,
+  object: GameObject,
+  oracle: CardOracle,
+  keyword: Keyword,
+): number {
+  if (object.zone !== 'base' && object.zone !== 'battlefield') return 0
+  let total = 0
+  for (const { source, effect } of activePassives(board, oracle, 'keyword')) {
+    if (effect.keyword !== keyword) continue
+    const affected =
+      effect.to === 'me'
+        ? source.id === object.id
+        : matchesSelector(board, object, effect.to, contextOf(source, oracle))
+    if (!affected) continue
+    if (
+      (effect.while ?? []).every((condition) => holds(board, condition, source, object, oracle))
+    ) {
+      total += effect.value ?? 1
+    }
+  }
+  return total
+}
+
+/**
+ * Is this unit stopped from moving to that kind of Destination by a passive in
+ * play ("Units can't move from here to base")? An invalid Destination is no
+ * Destination at all (447.2), so the Move simply cannot be made.
+ */
+export function moveBlocked(
+  board: Board,
+  unit: GameObject,
+  to: 'base',
+  oracle: CardOracle,
+): boolean {
+  for (const { source, effect } of activePassives(board, oracle, 'restrict-move')) {
+    if (effect.to !== to) continue
+    const affected =
+      effect.of === 'me'
+        ? source.id === unit.id
+        : matchesSelector(board, unit, effect.of, contextOf(source, oracle))
+    if (affected) return true
+  }
+  return false
+}
+
+/**
+ * The Victory Score: 8 (466.2), moved by any passive in play that changes how
+ * many points the game takes ("Increase the points needed to win the game").
+ */
+export function pointsToWin(board: Board, oracle: CardOracle, base: number): number {
+  let total = base
+  for (const { effect } of activePassives(board, oracle, 'points-to-win')) {
+    total += effect.amount
+  }
+  return Math.max(1, total)
+}
+
 /**
  * Printed Might plus everything that modifies it: buff counters (+1 each, 703),
  * Might given this turn, Assault or Shield while the unit is an attacker or a
@@ -117,9 +185,9 @@ export function mightOf(board: Board, object: GameObject, oracle: CardOracle): n
   if (facts?.might === undefined) return undefined
   const combat =
     object.combatRole === 'attacker'
-      ? keywordOn(object, oracle, 'assault')
+      ? keywordOn(board, object, oracle, 'assault')
       : object.combatRole === 'defender'
-        ? keywordOn(object, oracle, 'shield')
+        ? keywordOn(board, object, oracle, 'shield')
         : 0
   return (
     facts.might +

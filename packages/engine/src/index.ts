@@ -56,6 +56,8 @@ export {
   hasLethalDamage,
   keywordOn,
   mightOf,
+  moveBlocked,
+  pointsToWin,
   spellCost,
 } from './effects/might.js'
 export type {

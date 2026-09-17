@@ -17,7 +17,7 @@ import type { Amount, EffectStep, StepCondition, Target } from './steps.js'
 import type { CardOracle } from './oracle.js'
 import type { GameEvent } from './events.js'
 import { replaceDeath } from './death.js'
-import { bonusDamage, hasLethalDamage, mightOf } from './might.js'
+import { bonusDamage, hasLethalDamage, mightOf, moveBlocked } from './might.js'
 import { resolveSelector, selectorCount } from './selector.js'
 import type { SelectorContext } from './selector.js'
 import type { Domain } from '../model/domain.js'
@@ -495,12 +495,21 @@ function runStep(
         const unit = next.objects[id]
         if (!unit || unit.location?.kind !== 'battlefield') continue
         if (oracle.facts(unit.cardId)?.type !== 'unit') continue
+        // 447.2 - a Destination a passive forbids is not a Destination at all,
+        // for an effect's Move as much as for a Standard Move (420.1).
+        if (moveBlocked(next, unit, 'base', oracle)) continue
         const to = { kind: 'base', player: unit.controller } as const
         next = withObject(next, id, { zone: 'base', location: to })
         events.push({ type: 'moved', unit: id, to })
       }
       // 453 - the Cleanup this calls for runs once the Chain allows it (321.1).
       return { state: next }
+    }
+
+    case 'win-game': {
+      // 466.4 - a card may simply say you win. Priority stops with the game.
+      events.push({ type: 'game-won', player: self })
+      return { state: { ...state, winner: self, priority: null, focus: null } }
     }
 
     case 'play-token': {

@@ -42,7 +42,7 @@ function atTurnStart(overrides: Partial<GameState> = {}): GameState {
 
 describe('turn machine — start of turn (315)', () => {
   it('runs every step and stops in the Main Phase with the Turn Player holding priority', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     expect(state.phase).toBe('main')
     expect(state.step).toBe('main')
     expect(state.priority).toBe(state.turnPlayer)
@@ -78,13 +78,13 @@ describe('turn machine — start of turn (315)', () => {
         },
       },
     }
-    const { state } = advanceFlow(withExhausted)
+    const { state } = advanceFlow(withExhausted, oracle)
     expect(state.objects.mine?.exhausted).toBe(false)
     expect(state.objects.theirs?.exhausted).toBe(true)
   })
 
   it('channels 2 runes, readied, into the base (315.3, 430.2.a)', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     expect(state.players[0].base).toHaveLength(RUNES_PER_TURN)
     expect(state.players[0].runeDeck).toHaveLength(3 - RUNES_PER_TURN)
     for (const id of state.players[0].base) {
@@ -95,12 +95,12 @@ describe('turn machine — start of turn (315)', () => {
 
   it('gives the second player an extra rune on their first Channel Phase (485.7)', () => {
     const secondPlayerTurn = atTurnStart({ turnPlayer: 1, turnNumber: 2 })
-    const { state } = advanceFlow(secondPlayerTurn)
+    const { state } = advanceFlow(secondPlayerTurn, oracle)
     expect(state.players[1].base).toHaveLength(RUNES_PER_TURN + 1)
   })
 
   it('draws exactly one card (315.4)', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     expect(state.players[0].hand).toHaveLength(1)
     expect(state.players[0].mainDeck).toHaveLength(1)
   })
@@ -118,7 +118,7 @@ describe('turn machine — start of turn (315)', () => {
         },
       },
     }
-    const { state } = advanceFlow(start)
+    const { state } = advanceFlow(start, oracle)
     expect(state.players[0].runePool).toEqual({
       energy: 0,
       power: {},
@@ -130,7 +130,7 @@ describe('turn machine — start of turn (315)', () => {
 
 describe('turn machine — ending and cycling (316.9, 317)', () => {
   it('passing in the Main Phase ends the turn and hands over to the opponent', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     const result = applyAction(state, { type: 'pass', player: 0 }, oracle)
     expect(result.ok).toBe(true)
     if (!result.ok) return
@@ -159,7 +159,7 @@ describe('turn machine — ending and cycling (316.9, 317)', () => {
         },
       },
     }
-    const { state } = advanceFlow(damaged)
+    const { state } = advanceFlow(damaged, oracle)
     const afterPass = applyAction(state, { type: 'pass', player: 0 }, oracle)
     expect(afterPass.ok).toBe(true)
     if (!afterPass.ok) return
@@ -172,7 +172,7 @@ describe('turn machine — ending and cycling (316.9, 317)', () => {
       ...start,
       players: { ...start.players, 0: { ...start.players[0], scoredThisTurn: ['bf-0'] } },
     }
-    const { state } = advanceFlow(scored)
+    const { state } = advanceFlow(scored, oracle)
     const next = applyAction(state, { type: 'pass', player: 0 }, oracle)
     if (!next.ok) throw new Error('pass rejected')
     expect(next.state.players[0].scoredThisTurn).toEqual([])
@@ -187,7 +187,7 @@ describe('scoring (467-472)', () => {
         { id: 'bf-1', contested: false, facedown: [] },
       ],
     })
-    const { state } = advanceFlow(start)
+    const { state } = advanceFlow(start, oracle)
     expect(state.players[0].points).toBe(1)
     expect(state.players[0].scoredThisTurn).toEqual(['bf-0'])
   })
@@ -195,8 +195,8 @@ describe('scoring (467-472)', () => {
   it('scores a Battlefield at most once per turn (470)', () => {
     const events: GameEvent[] = []
     const start = atTurnStart()
-    const once = score(start, 0, 'bf-0', 'hold', events)
-    const twice = score(once, 0, 'bf-0', 'hold', events)
+    const once = score(start, 0, 'bf-0', 'hold', events, oracle)
+    const twice = score(once, 0, 'bf-0', 'hold', events, oracle)
     expect(twice.players[0].points).toBe(1)
   })
 
@@ -211,7 +211,7 @@ describe('scoring (467-472)', () => {
       ...start,
       players: { ...start.players, 0: { ...start.players[0], points: VICTORY_SCORE - 1 } },
     }
-    const { state, events } = advanceFlow(nearly)
+    const { state, events } = advanceFlow(nearly, oracle)
     expect(state.winner).toBe(0)
     expect(events).toContainEqual({ type: 'game-won', player: 0 })
   })
@@ -228,7 +228,7 @@ describe('the Final Point rule (471.1.b)', () => {
 
   it('refuses the winning point on a Conquer that has not Scored every Battlefield', () => {
     const events: GameEvent[] = []
-    const after = score(atSevenPoints(), 0, 'bf-0', 'conquer', events)
+    const after = score(atSevenPoints(), 0, 'bf-0', 'conquer', events, oracle)
     // The Score is recorded, but no point is gained — the player draws instead.
     expect(after.players[0].points).toBe(VICTORY_SCORE - 1)
     expect(after.players[0].scoredThisTurn).toEqual(['bf-0'])
@@ -239,15 +239,15 @@ describe('the Final Point rule (471.1.b)', () => {
     const events: GameEvent[] = []
     // First Conquer is refused the point (not every Battlefield Scored yet) but
     // is still recorded; the second then completes the set and wins.
-    const first = score(atSevenPoints(), 0, 'bf-0', 'conquer', events)
+    const first = score(atSevenPoints(), 0, 'bf-0', 'conquer', events, oracle)
     expect(first.players[0].points).toBe(VICTORY_SCORE - 1)
-    const second = score(first, 0, 'bf-1', 'conquer', events)
+    const second = score(first, 0, 'bf-1', 'conquer', events, oracle)
     expect(second.players[0].points).toBe(VICTORY_SCORE)
   })
 
   it('does not restrict a Hold — only Conquer is restricted (471.1.a.1)', () => {
     const events: GameEvent[] = []
-    const after = score(atSevenPoints(), 0, 'bf-0', 'hold', events)
+    const after = score(atSevenPoints(), 0, 'bf-0', 'hold', events, oracle)
     expect(after.players[0].points).toBe(VICTORY_SCORE)
   })
 })
@@ -261,7 +261,7 @@ describe('Burn Out during the Draw Phase (315.4.b.1, 431)', () => {
       ],
       { phase: 'awaken', step: 'ready', priority: null },
     )
-    const { state, events } = advanceFlow(start)
+    const { state, events } = advanceFlow(start, oracle)
     expect(events).toContainEqual({ type: 'burned-out', player: 0, gavePointTo: 1 })
     expect(state.players[1].points).toBe(1)
     expect(state.players[0].hand).toEqual(['dead'])
@@ -270,7 +270,7 @@ describe('Burn Out during the Draw Phase (315.4.b.1, 431)', () => {
 
 describe('actions', () => {
   it('rejects a pass from the player without priority', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     const result = applyAction(state, { type: 'pass', player: 1 }, oracle)
     expect(result.ok).toBe(false)
     if (result.ok) return
@@ -278,7 +278,7 @@ describe('actions', () => {
   })
 
   it('lets either player concede, and the opponent wins (650)', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     const result = applyAction(state, { type: 'concede', player: 0 }, oracle)
     expect(result.ok).toBe(true)
     if (!result.ok) return
@@ -286,7 +286,7 @@ describe('actions', () => {
   })
 
   it('refuses every action once the game is over', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     const conceded = applyAction(state, { type: 'concede', player: 0 }, oracle)
     if (!conceded.ok) throw new Error('concede rejected')
     const after = applyAction(conceded.state, { type: 'pass', player: 1 }, oracle)
@@ -297,7 +297,7 @@ describe('actions', () => {
   })
 
   it('offers pass only to the player holding priority', () => {
-    const { state } = advanceFlow(atTurnStart())
+    const { state } = advanceFlow(atTurnStart(), oracle)
     expect(legalActions(state, 0, oracle).map((a) => a.type)).toContain('pass')
     expect(legalActions(state, 1, oracle).map((a) => a.type)).not.toContain('pass')
   })
@@ -306,7 +306,7 @@ describe('actions', () => {
 describe('determinism', () => {
   it('replays a sequence of turns identically', () => {
     const play = () => {
-      let current = advanceFlow(atTurnStart()).state
+      let current = advanceFlow(atTurnStart(), oracle).state
       for (let i = 0; i < 6; i += 1) {
         const result = applyAction(current, { type: 'pass', player: current.turnPlayer }, oracle)
         if (!result.ok) throw new Error('pass rejected')

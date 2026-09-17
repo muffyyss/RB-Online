@@ -223,6 +223,7 @@ function afterChain(drained: Advanced, oracle: CardOracle): Advanced {
   const settled = checkWin(
     withTriggers(settleBoard(drained.state, oracle, cleanup), cleanup, oracle),
     cleanup,
+    oracle,
   )
   const events = [...drained.events, ...cleanup]
   if (settled.chain.length > 0 || settled.pendingChoice !== null || settled.winner !== null) {
@@ -502,12 +503,13 @@ export function applyAction(
       const events: GameEvent[] = []
       const moved = performMove(state, action.units, action.to, events)
       // 453 - a Cleanup follows a completed Move; that is where Contested and
-      // Control are settled, and where a Conquer scores.
-      const cleaned = checkWin(
-        withTriggers(settleBoard(moved, oracle, events), events, oracle),
-        events,
-      )
-      return { ok: true, state: cleaned, events }
+      // Control are settled, and where a Conquer scores. Anything that Conquer
+      // triggers goes on the Chain, and once that Chain is done the turn has to
+      // pick up again — otherwise a Move that fired a trigger would leave the
+      // Main Phase with Priority nowhere.
+      const triggered = withTriggers(settleBoard(moved, oracle, events), events, oracle)
+      const settled = afterChain({ state: checkWin(triggered, events, oracle), events }, oracle)
+      return { ok: true, state: settled.state, events: [...settled.events] }
     }
 
     case 'pass': {
@@ -540,6 +542,7 @@ export function applyAction(
         const settled = checkWin(
           withTriggers(settleBoard(fought, oracle, events), events, oracle),
           events,
+          oracle,
         )
         const after =
           settled.showdown || settled.winner !== null || settled.chain.length > 0
@@ -560,7 +563,7 @@ export function applyAction(
       // An empty Chain in the Main Phase: passing ends the turn (316.9).
       const events: GameEvent[] = []
       const ended = endMainPhase(state)
-      const advanced = advanceFlow(checkWin(ended, events), oracle)
+      const advanced = advanceFlow(checkWin(ended, events, oracle), oracle)
       return { ok: true, state: advanced.state, events: [...events, ...advanced.events] }
     }
   }

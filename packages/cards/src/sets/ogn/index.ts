@@ -1,7 +1,8 @@
 /**
- * Origins (OGN) — the base set. Only the cards the four Proving Grounds
- * decks use are entered so far: their Runes, Battlefields and Main Deck
- * cards. The rest of the set is added as it is needed.
+ * Origins (OGN) — the base set. Entered so far: the cards the four Proving
+ * Grounds decks use — their Runes and Main Deck cards — and every Battlefield
+ * in the set, since a deck of any domain draws its Battlefields from the same
+ * 24. The rest of the set is added as it is needed.
  */
 
 import type { CardDefinition } from '../../schema.js'
@@ -51,6 +52,26 @@ import fortifiedPosition from './fortified-position.js'
 import startippedPeak from './startipped-peak.js'
 import trifarianWarCamp from './trifarian-war-camp.js'
 import voidGate from './void-gate.js'
+import altarToUnity from './altar-to-unity.js'
+import aspirantsClimb from './aspirants-climb.js'
+import backAlleyBar from './back-alley-bar.js'
+import bandleTree from './bandle-tree.js'
+import groveOfTheGodWillow from './grove-of-the-god-willow.js'
+import hallowedTomb from './hallowed-tomb.js'
+import monasteryOfHirana from './monastery-of-hirana.js'
+import navoriFightingPit from './navori-fighting-pit.js'
+import obeliskOfPower from './obelisk-of-power.js'
+import reaversRow from './reavers-row.js'
+import reckonersArena from './reckoners-arena.js'
+import sigilOfTheStorm from './sigil-of-the-storm.js'
+import targonsPeak from './targons-peak.js'
+import theArenasGreatest from './the-arenas-greatest.js'
+import theCandlelitSanctum from './the-candlelit-sanctum.js'
+import theDreamingTree from './the-dreaming-tree.js'
+import theGrandPlaza from './the-grand-plaza.js'
+import vilemawsLair from './vilemaws-lair.js'
+import windsweptHillock from './windswept-hillock.js'
+import zaunWarrens from './zaun-warrens.js'
 
 /** In collector-number order. */
 export const OGN_CARDS: readonly CardDefinition[] = [
@@ -99,4 +120,24 @@ export const OGN_CARDS: readonly CardDefinition[] = [
   startippedPeak,
   trifarianWarCamp,
   voidGate,
+  altarToUnity,
+  aspirantsClimb,
+  backAlleyBar,
+  bandleTree,
+  groveOfTheGodWillow,
+  hallowedTomb,
+  monasteryOfHirana,
+  navoriFightingPit,
+  obeliskOfPower,
+  reaversRow,
+  reckonersArena,
+  sigilOfTheStorm,
+  targonsPeak,
+  theArenasGreatest,
+  theCandlelitSanctum,
+  theDreamingTree,
+  theGrandPlaza,
+  vilemawsLair,
+  windsweptHillock,
+  zaunWarrens,
 ]

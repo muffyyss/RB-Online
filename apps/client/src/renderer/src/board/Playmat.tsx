@@ -21,7 +21,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { cardFullName, cardOracle, getCard } from '@rb/cards'
-import { mightOf } from '@rb/engine'
+import { mightOf, pointsToWin } from '@rb/engine'
 import type { GameAction, GameObject, GameView, Location, ObjectId, PlayerId } from '@rb/engine'
 
 import {
@@ -38,7 +38,8 @@ import type { MatchSession } from '../../../shared/match.js'
 import { Card } from './Card.js'
 
 const MULLIGAN_LIMIT = 2
-const VICTORY_SCORE = 8
+/** 466.2. A Battlefield in play may raise it, so the mat asks the engine. */
+const BASE_VICTORY_SCORE = 8
 
 const oracle = cardOracle()
 
@@ -151,9 +152,9 @@ function Pile(props: {
   )
 }
 
-/** The score track down the outer edge: 0 to 8, filled up to where they are. */
-function ScoreTrack({ points, flip }: { points: number; flip?: boolean }) {
-  const steps = Array.from({ length: VICTORY_SCORE + 1 }, (_, i) => i)
+/** The score track down the outer edge: 0 to the Victory Score, filled up to where they are. */
+function ScoreTrack({ points, target, flip }: { points: number; target: number; flip?: boolean }) {
+  const steps = Array.from({ length: target + 1 }, (_, i) => i)
   return (
     <div className="score">
       {(flip ? steps : [...steps].reverse()).map((step) => (
@@ -209,6 +210,7 @@ function Half(props: { mat: MatHandle; player: PlayerId; hands: Hands }) {
   const flip = !mine
 
   const base = objectsAt(view, { kind: 'base', player })
+  const target = pointsToWin(view, oracle, BASE_VICTORY_SCORE)
   const pieces = (ids: readonly ObjectId[]) =>
     ids.map((id) => <Piece key={id} mat={mat} id={id} hands={hands} />)
 
@@ -303,7 +305,7 @@ function Half(props: { mat: MatHandle; player: PlayerId; hands: Hands }) {
 
   return (
     <div className={`mat-half ${mine ? 'mat-half--mine' : 'mat-half--theirs'}`}>
-      <ScoreTrack points={p.points} flip={flip} />
+      <ScoreTrack points={p.points} target={target} flip={flip} />
       <div className="mat-rows">
         {mine ? (
           <>
@@ -338,7 +340,7 @@ function Rail(props: { mat: MatHandle; player: PlayerId }) {
       </span>
       <span className="mat-rail-score">
         {p.points}
-        <i>/{VICTORY_SCORE}</i>
+        <i>/{pointsToWin(mat.view, oracle, BASE_VICTORY_SCORE)}</i>
       </span>
       <span className="small muted mat-rail-legend">
         {p.legendZone.cards?.[0] === undefined

@@ -191,7 +191,7 @@ describe('Control and Conquer (190.4, 469.1)', () => {
       ],
     })
     const events: GameEvent[] = []
-    const after = runCleanup(held, events)
+    const after = runCleanup(held, events, oracle)
     expect(after.battlefields[0]?.controller).toBe(0)
   })
 
@@ -203,7 +203,7 @@ describe('Control and Conquer (190.4, 469.1)', () => {
       ],
     })
     const events: GameEvent[] = []
-    const after = runCleanup(held, events)
+    const after = runCleanup(held, events, oracle)
     expect(after.battlefields[0]?.controller).toBeUndefined()
     expect(events).toContainEqual({ type: 'battlefield-uncontrolled', battlefield: 'bf-0' })
   })

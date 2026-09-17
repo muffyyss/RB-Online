@@ -59,7 +59,7 @@ export function deflectCost(
 ): number {
   const object = state.objects[target]
   if (!object || object.controller === chooser) return 0
-  return keywordOn(object, oracle, 'deflect')
+  return keywordOn(state, object, oracle, 'deflect')
 }
 
 /** [A] Power, `count` times over. */

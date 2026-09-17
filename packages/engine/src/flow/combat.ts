@@ -64,7 +64,7 @@ function assignmentOrder(
   units: readonly GameObject[],
   oracle: CardOracle,
 ): DamageTarget[] {
-  const tank = (unit: GameObject) => keywordOn(unit, oracle, 'tank') > 0
+  const tank = (unit: GameObject) => keywordOn(state, unit, oracle, 'tank') > 0
   return [...units.filter(tank), ...units.filter((unit) => !tank(unit))].map((unit) =>
     toTarget(state, unit, oracle),
   )
@@ -302,7 +302,7 @@ export function resolveCombatEnd(
     winner !== undefined &&
     state.battlefields.find((bf) => bf.id === battlefield)?.controller !== winner
   ) {
-    next = score(next, winner, battlefield, 'conquer', events)
+    next = score(next, winner, battlefield, 'conquer', events, oracle)
     events.push({ type: 'battlefield-controlled', battlefield, player: winner })
   }
 

@@ -248,7 +248,7 @@ describe('end of turn', () => {
     expect(ended.state.turnNumber).toBe(2)
   })
 
-  it('does nothing when the turn machine runs without card data', () => {
+  it('puts nothing on the Chain when the cards in play have no abilities', () => {
     const state = place(
       inMain([{ id: 'owl', cardId: 'owl', owner: 0, zone: 'base' }], 0, {
         phase: 'ending',
@@ -259,7 +259,9 @@ describe('end of turn', () => {
       'owl',
       { kind: 'base', player: 0 },
     )
-    expect(advanceFlow(state).state.chain).toHaveLength(0)
+    // The same board, read through card data with no abilities on it at all.
+    const vanilla = oracleFrom({ owl: unit(1, []) })
+    expect(advanceFlow(state, vanilla).state.chain).toHaveLength(0)
   })
 })
 

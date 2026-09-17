@@ -12,6 +12,7 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
+import { keywordOn, moveBlocked } from '../effects/might.js'
 import type { CardOracle } from '../effects/oracle.js'
 import type { GameObject, GameState, Location, ObjectId, PlayerId } from '../state/game-state.js'
 import { isClosedState, isShowdownState } from '../state/game-state.js'
@@ -38,14 +39,25 @@ function sameLocation(a: Location | undefined, b: Location): boolean {
  * Base to a Battlefield, or a Battlefield back to your own Base. Battlefield to
  * Battlefield needs Ganking (144.4.c.1, 810.1.b).
  */
-function legalDestination(unit: GameObject, to: Location, keywords: readonly string[]): boolean {
+function legalDestination(
+  state: GameState,
+  unit: GameObject,
+  to: Location,
+  oracle: CardOracle,
+): boolean {
   const from = unit.location
   if (!from) return false
 
   if (from.kind === 'base' && to.kind === 'battlefield') return true
-  // A unit may only return to its own controller's Base.
-  if (from.kind === 'battlefield' && to.kind === 'base') return to.player === unit.controller
-  if (from.kind === 'battlefield' && to.kind === 'battlefield') return keywords.includes('ganking')
+  if (from.kind === 'battlefield' && to.kind === 'base') {
+    // A unit may only return to its own controller's Base, and only where
+    // nothing in play forbids that Destination (447.2).
+    return to.player === unit.controller && !moveBlocked(state, unit, 'base', oracle)
+  }
+  // Ganking, printed or given by something in play (144.4.c.1, 810.1.b).
+  if (from.kind === 'battlefield' && to.kind === 'battlefield') {
+    return keywordOn(state, unit, oracle, 'ganking') > 0
+  }
   return false
 }
 
@@ -79,7 +91,7 @@ export function moveRefusal(
     const facts = oracle.facts(unit.cardId)
     if (!facts || facts.type !== 'unit') return 'not-a-unit'
     if (sameLocation(unit.location, to)) return 'illegal-destination'
-    if (!legalDestination(unit, to, facts.keywords)) return 'illegal-destination'
+    if (!legalDestination(state, unit, to, oracle)) return 'illegal-destination'
   }
   return null
 }

@@ -271,6 +271,34 @@ export const passiveEffectSchema = z.discriminatedUnion('kind', [
     dealtBy: z.literal('self').optional(),
     to: selectorSchema.optional(),
   }),
+  /**
+   * "Units here have [Ganking]": a keyword held while the object is where the
+   * passive reaches it (801.3.a.3 for one given with no duration). Values add
+   * to anything printed, as granted keywords do (807.2, 814.2).
+   */
+  z.object({
+    kind: z.literal('keyword'),
+    keyword: z.enum(KEYWORDS),
+    value: z.number().int().positive().optional(),
+    to: affectsSchema,
+    while: z.array(passiveConditionSchema).optional(),
+  }),
+  /**
+   * "Units can't move from here to base": a Destination made invalid for the
+   * units the passive reaches (447.2). It applies to every Move, a Standard
+   * Move and one caused by an effect alike (420.1), but never to a Recall,
+   * which is not a Move (456.3).
+   */
+  z.object({
+    kind: z.literal('restrict-move'),
+    of: affectsSchema,
+    to: z.literal('base'),
+  }),
+  /**
+   * "Increase the points needed to win the game by 1" (466.2): the Victory
+   * Score itself moves, so nothing else about scoring changes.
+   */
+  z.object({ kind: z.literal('points-to-win'), amount: z.number().int() }),
 ])
 
 export type PassiveEffect = z.infer<typeof passiveEffectSchema>
@@ -481,6 +509,12 @@ const leafStepSchema = z.discriminatedUnion('op', [
     from: selectorSchema,
     optional: z.boolean().optional(),
   }),
+
+  /**
+   * "You win the game" (466.4): the ability's controller wins where they
+   * stand, without going through the Victory Score.
+   */
+  z.object({ op: z.literal('win-game') }),
 ])
 
 type LeafStep = z.infer<typeof leafStepSchema>

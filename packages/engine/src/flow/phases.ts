@@ -12,6 +12,7 @@
  */
 
 import type { GameEvent } from '../effects/events.js'
+import { pointsToWin } from '../effects/might.js'
 import type { CardOracle } from '../effects/oracle.js'
 import { advanceChain } from './chain.js'
 import { enqueueTriggers } from './triggers.js'
@@ -96,6 +97,7 @@ export function score(
   battlefieldId: ObjectId,
   method: 'conquer' | 'hold',
   events: GameEvent[],
+  oracle: CardOracle,
 ): GameState {
   const p = state.players[player]
   if (p.scoredThisTurn.includes(battlefieldId)) return state // 470
@@ -107,7 +109,7 @@ export function score(
 
   // 471.1.b - a Conquer that would reach the Victory Score only scores if the
   // player has Scored every Battlefield this turn; otherwise they draw instead.
-  if (method === 'conquer' && p.points >= VICTORY_SCORE - 1) {
+  if (method === 'conquer' && p.points >= pointsToWin(state, oracle, VICTORY_SCORE) - 1) {
     const everyBattlefield = state.battlefields.every((b) => scoredThisTurn.includes(b.id))
     if (!everyBattlefield) {
       // The draw itself is handled by the caller's effect pipeline; recording
@@ -121,11 +123,11 @@ export function score(
 }
 
 /** 315.2.b.2 — the Turn Player Holds all Battlefields they Control. */
-function scoringStep(state: GameState, events: GameEvent[]): GameState {
+function scoringStep(state: GameState, events: GameEvent[], oracle: CardOracle): GameState {
   let next = state
   for (const bf of state.battlefields) {
     if (bf.controller === state.turnPlayer) {
-      next = score(next, state.turnPlayer, bf.id, 'hold', events)
+      next = score(next, state.turnPlayer, bf.id, 'hold', events, oracle)
     }
   }
   return next
@@ -206,12 +208,13 @@ function expiration(state: GameState, events: GameEvent[]): GameState {
 }
 
 /** 472 — on a Cleanup, a player at or past the Victory Score with more points wins. */
-export function checkWin(state: GameState, events: GameEvent[]): GameState {
+export function checkWin(state: GameState, events: GameEvent[], oracle: CardOracle): GameState {
   if (state.winner !== null) return state
+  const target = pointsToWin(state, oracle, VICTORY_SCORE)
   for (const player of [0, 1] as const) {
     const mine = state.players[player].points
     const theirs = state.players[opponentOf(player)].points
-    if (mine >= VICTORY_SCORE && mine > theirs) {
+    if (mine >= target && mine > theirs) {
       events.push({ type: 'game-won', player })
       return { ...state, winner: player, priority: null, focus: null }
     }
@@ -246,12 +249,12 @@ function beginTurn(state: GameState): GameState {
 }
 
 /** Run the task attached to the state's current step. */
-function runStepTask(state: GameState, events: GameEvent[]): GameState {
+function runStepTask(state: GameState, events: GameEvent[], oracle: CardOracle): GameState {
   switch (state.step) {
     case 'ready':
       return awaken(state, events)
     case 'scoring':
-      return scoringStep(state, events)
+      return scoringStep(state, events, oracle)
     case 'channel': {
       // 485.7 - the player going second channels an extra rune during their
       // first Channel Phase of the game.
@@ -361,7 +364,7 @@ export interface AdvanceResult {
  * picks up after that step, because its task is marked done. Without card data
  * (some tests drive the turn structure alone) nothing triggers.
  */
-export function advanceFlow(state: GameState, oracle?: CardOracle): AdvanceResult {
+export function advanceFlow(state: GameState, oracle: CardOracle): AdvanceResult {
   const events: GameEvent[] = []
   let current = state
 
@@ -390,8 +393,8 @@ export function advanceFlow(state: GameState, oracle?: CardOracle): AdvanceResul
     if (def.grantsPriority) {
       if (!current.stepTaskDone) {
         const mark = events.length
-        current = { ...runStepTask(current, events), stepTaskDone: true }
-        current = checkWin(current, events)
+        current = { ...runStepTask(current, events, oracle), stepTaskDone: true }
+        current = checkWin(current, events, oracle)
         if (triggered(mark)) break
       }
       if (current.priority === null) {
@@ -402,8 +405,8 @@ export function advanceFlow(state: GameState, oracle?: CardOracle): AdvanceResul
 
     if (!current.stepTaskDone) {
       const mark = events.length
-      current = { ...runStepTask(current, events), stepTaskDone: true }
-      current = checkWin(current, events)
+      current = { ...runStepTask(current, events, oracle), stepTaskDone: true }
+      current = checkWin(current, events, oracle)
       if (current.winner !== null) break
       if (triggered(mark)) break
     }

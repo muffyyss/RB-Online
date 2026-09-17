@@ -60,7 +60,7 @@ function applyContested(state: GameState): GameState {
  *  - Two players present means a Combat is staged (461); Control cannot change
  *    while that is pending (190.4.b), so this leaves it alone.
  */
-function settleControl(state: GameState, events: GameEvent[]): GameState {
+function settleControl(state: GameState, events: GameEvent[], oracle: CardOracle): GameState {
   let current = state
   const battlefields: BattlefieldState[] = []
 
@@ -87,7 +87,7 @@ function settleControl(state: GameState, events: GameEvent[]): GameState {
         continue
       }
       // Control established. That is a Conquer (466.5.d, 469.1).
-      current = score(current, holder, bf.id, 'conquer', events)
+      current = score(current, holder, bf.id, 'conquer', events, oracle)
       events.push({ type: 'battlefield-controlled', battlefield: bf.id, player: holder })
       battlefields.push({ ...bf, controller: holder, contested: false })
       continue
@@ -113,8 +113,8 @@ function settleControl(state: GameState, events: GameEvent[]): GameState {
  * Contested is applied before Control is settled, because whether a Battlefield
  * is Contested decides whether Control may change at all.
  */
-export function runCleanup(state: GameState, events: GameEvent[]): GameState {
-  return settleControl(applyContested(state), events)
+export function runCleanup(state: GameState, events: GameEvent[], oracle: CardOracle): GameState {
+  return settleControl(applyContested(state), events, oracle)
 }
 
 /**
@@ -156,7 +156,7 @@ function killLethal(state: GameState, oracle: CardOracle, events: GameEvent[]): 
  * first is taken for determinism until it is worth surfacing.
  */
 export function settleBoard(state: GameState, oracle: CardOracle, events: GameEvent[]): GameState {
-  const cleaned = runCleanup(killLethal(state, oracle, events), events)
+  const cleaned = runCleanup(killLethal(state, oracle, events), events, oracle)
   if (cleaned.showdown || cleaned.chain.length > 0 || cleaned.winner !== null) return cleaned
 
   const staged = stagedCombats(cleaned)
